@@ -26,7 +26,9 @@ Write-Host "== T-port: well-known round-trip (HOME aislado) =="
 $realUser = $homeDir
 $isoUser = Join-Path $env:TEMP ('cross_wk_user_' + [System.Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $isoUser -Force | Out-Null
-$wkFile = Join-Path (Join-Path $isoUser '.config\opencode') 'server.port'
+        $wkConfigDir = Join-Path (Join-Path $isoUser '.config') 'opencode'
+        New-Item -ItemType Directory -Path $wkConfigDir -Force | Out-Null
+        $wkFile = Join-Path $wkConfigDir 'server.port'
 try {
     $env:HOME = $isoUser
     $env:USERPROFILE = $isoUser
@@ -41,6 +43,8 @@ try {
     $null = Write-CrossPortWellKnown -Port 70000
     Assert-True ((Get-CrossPortWellKnown) -eq 12345) 'puerto 70000 rechazado' (Get-CrossPortWellKnown)
 
+    $wkConfigDir = Join-Path (Join-Path $isoUser ".config") "opencode"
+    New-Item -ItemType Directory -Path $wkConfigDir -Force | Out-Null
     [System.IO.File]::WriteAllText($wkFile, 'abc', (New-Object System.Text.UTF8Encoding($false)))
     Assert-True ($null -eq (Get-CrossPortWellKnown)) 'contenido no numerico -> null (no throw)' (Get-CrossPortWellKnown)
     [System.IO.File]::WriteAllText($wkFile, '70000', (New-Object System.Text.UTF8Encoding($false)))
