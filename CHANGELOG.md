@@ -9,6 +9,22 @@ mixed current specification with changelog and PowerShell pitfalls).
 
 ## Versions
 
+### v1.17.0 (2026-08-23) - Reliability hardening + multiplatform CI
+
+Origin: Claude diagnosis validated by GLM-5.3, implemented by leader OX ALPHA,
+verified by advisor council (MIMO, HY3, BIG PICKLE, NEMOTRON, MUSE SPARK).
+
+- **D1**: Parse-CrossAckText (v1 ACK parser) REMOVED. Find-AckInList and all
+  emitters now use envelope v2 JSON exclusively. Breaking change: v1 free-text
+  ACK/NACK formats are rejected by design.
+- **D2**: Structured API-first failure diagnosis. CONFIG_ERROR via local
+  validation, PROVIDER_DOWN via /global/health, AGENT_SLEEPING via new
+  Get-CrossSessionState (GET /session/:id). Zero third-party log scraping.
+- **D4**: ubuntu-latest CI job validating cross-platform layer (advisory file
+  lock, curl resolution) with 5 server-independent suites.
+- **Racefix**: Write-CrossDeliveryLog routes through mutexed Add-CrossLogLine
+  (prevents lost lines under concurrent sends).
+- **Onboarding**: AGENTS.md, llms.txt, QUICKSTART.md added for LLM agents.
 ### v1.16.0 (2026-08-21) - F1-F5 reliability hardening (wire protocol unchanged)
 
 Origin: Claude diagnosis validated by GLM-5.3, implemented by leader OX ALPHA,

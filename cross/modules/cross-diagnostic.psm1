@@ -48,6 +48,10 @@ function Get-SessionState {
             if ($null -ne $s -and $s.status) { $status = [string]$s.status }
             $checkable = $true
         }
+        if ($status -eq 'idle' -or $status -eq 'asleep') {
+            # D2 (v1.17): structured AGENT_SLEEPING signal from GET /session/:id
+            return @{ session_id = $SessionId; status = $status; growing = $false; checkable = $true; wait_ms = $WaitMs; sleeping = $true }
+        }
         if ($status -eq 'busy' -or -not $status) {
             $g = Test-SessionGrowing -SessionId $SessionId -Port $Port -Password $Password -WaitMs $WaitMs -SleepFn $SleepFn
             $growing = [bool]$g.growing
