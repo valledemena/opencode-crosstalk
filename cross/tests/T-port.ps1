@@ -32,6 +32,10 @@ New-Item -ItemType Directory -Path $isoUser -Force | Out-Null
 try {
     $env:HOME = $isoUser
     $env:USERPROFILE = $isoUser
+    # D4-fix5: XDG_CONFIG_HOME tiene prioridad sobre HOME en Linux (cross-ipc);
+    # neutralizarlo para que el modulo resuelva dentro de $isoUser.
+    $prevXdg = $env:XDG_CONFIG_HOME
+    $env:XDG_CONFIG_HOME = Join-Path $isoUser '.config'
     Assert-True ($null -eq (Get-CrossPortWellKnown)) 'well-known inexistente -> null' (Get-CrossPortWellKnown)
 
     $null = Write-CrossPortWellKnown -Port 12345
@@ -52,6 +56,7 @@ try {
     [System.IO.File]::WriteAllText($wkFile, '', (New-Object System.Text.UTF8Encoding($false)))
     Assert-True ($null -eq (Get-CrossPortWellKnown)) 'archivo vacio -> null (NEMOTRON-N2)' (Get-CrossPortWellKnown)
 } finally {
+    if ($null -ne $prevXdg) { $env:XDG_CONFIG_HOME = $prevXdg } else { Remove-Item Env:\XDG_CONFIG_HOME -ErrorAction SilentlyContinue }
     $env:HOME = $realUser
     $env:USERPROFILE = $realUser
     if (Test-Path -LiteralPath $isoUser) { Remove-Item -LiteralPath $isoUser -Recurse -Force -ErrorAction SilentlyContinue }
