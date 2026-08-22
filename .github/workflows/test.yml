@@ -6,8 +6,6 @@ on:
   pull_request:
     branches: [master]
 
-permissions:
-  contents: write
 
 jobs:
   test-windows:
@@ -40,21 +38,13 @@ jobs:
           Set-Content -Path ci-results.txt -Value $summary -Encoding utf8
           if ($totalF -gt 0) { exit 1 }
 
-      - name: Publish diagnostics (windows)
+      - name: Upload diagnostics (windows)
         if: always()
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if (-not (Test-Path ci-results.txt)) { Set-Content ci-results.txt 'no results file' }
-          git config user.name 'ci-diagnostics-bot'
-          git config user.email 'ci@noreply'
-          git fetch origin ci-diagnostics 2>$null
-          git checkout -b ci-diagnostics 2>$null; if ($LASTEXITCODE -ne 0) { git checkout ci-diagnostics }
-          Copy-Item ci-results.txt "diagnostics-windows.txt" -Force
-          git add diagnostics-windows.txt
-          git commit -m "ci diagnostics windows $($env:GITHUB_SHA.Substring(0,7))" 2>$null
-          git push origin ci-diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-results-windows
+          path: ci-results.txt
+          if-no-files-found: ignore
 
   # D4 (v1.17): validate F3/cross-ipc on Linux - advisory file lock, curl resolution,
   # config discovery. Only server-independent suites run here (no OpenCode Desktop).
@@ -106,18 +96,10 @@ jobs:
           Set-Content -Path ci-results-ubuntu.txt -Value $summary -Encoding utf8
           if ($totalF -gt 0) { exit 1 }
 
-      - name: Publish diagnostics (ubuntu)
+      - name: Upload diagnostics (ubuntu)
         if: always()
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if (-not (Test-Path ci-results-ubuntu.txt)) { Set-Content ci-results-ubuntu.txt 'no results file' }
-          git config user.name 'ci-diagnostics-bot'
-          git config user.email 'ci@noreply'
-          git fetch origin ci-diagnostics 2>$null
-          git checkout -b ci-diagnostics 2>$null; if ($LASTEXITCODE -ne 0) { git checkout ci-diagnostics }
-          Copy-Item ci-results-ubuntu.txt "diagnostics-ubuntu.txt" -Force
-          git add diagnostics-ubuntu.txt
-          git commit -m "ci diagnostics ubuntu $($env:GITHUB_SHA.Substring(0,7))" 2>$null
-          git push origin ci-diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-results-ubuntu
+          path: ci-results-ubuntu.txt
+          if-no-files-found: ignore
