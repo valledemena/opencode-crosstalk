@@ -580,8 +580,8 @@ function Add-CrossLogLine {
     param(
         [Parameter(Mandatory=$true)][string]$Path,
         [Parameter(Mandatory=$true)][string]$Line,
-        [int]$MaxRetries = 3,
-        [int[]]$BackoffMs = @(200, 400, 800)
+        [int]$MaxRetries = 5,
+        [int[]]$BackoffMs = @(100, 200, 400, 800, 1600)
     )
     $parent = Split-Path -Parent $Path
     if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
@@ -590,23 +590,22 @@ function Add-CrossLogLine {
     $mutex = Get-OutboxMutex -Path $Path
     $locked = $false
     try {
-        $locked = $mutex.WaitOne(10000)
-        if (-not $locked) { return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not acquire log mutex within 10s' } }
+        $locked = $mutex.WaitOne(30000)
+        if (-not $locked) { throw [System.TimeoutException] "could not acquire log mutex within 30s" }
         for ($i = 0; $i -lt $MaxRetries; $i++) {
             try {
                 [System.IO.File]::AppendAllText($Path, $Line + "`n", (New-Object System.Text.UTF8Encoding($false)))
-                return @{ ok = $true; path = $Path }
+                return
             } catch [System.IO.IOException] {
                 if (($i + 1) -lt $MaxRetries) { Start-Sleep -Milliseconds $BackoffMs[$i] }
             } catch {
-                return @{ ok = $false; err = 'LOG_WRITE_ERROR'; detail = $_.Exception.Message }
+                throw
             }
         }
-        return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not append the line after retries (backoff 200/400/800ms)' }
+        throw [System.IO.IOException] "could not append the line after retries (backoff 200/400/800/1600/3200ms)"
     } finally {
         if ($locked) { try { $mutex.ReleaseMutex() } catch { } }
     }
-    return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not append the line after retries (backoff 200/400/800ms)' }
 }
 
 function Write-AuditEntry {
