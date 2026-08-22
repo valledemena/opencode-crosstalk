@@ -21,6 +21,8 @@ function Invoke-CrossCli {
 
 function Get-TmpConfig {
     param([string]$Dir, [string]$Sid, [string]$Lider, [string]$Model, [string]$Role)
+    $homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { [Environment]::GetFolderPath('UserProfile') }
+    $tmpDir = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
     $cfg = [ordered]@{
         my_session_id = $Sid
         leader_session_id = $Lider
@@ -28,8 +30,8 @@ function Get-TmpConfig {
         my_role = $Role
         whiteboard_dir = (Join-Path $Dir 'whiteboard')
         diario_dir = (Join-Path $Dir 'diario')
-        log_path = "$env:TEMP\opencode\opencode.log"
-        desktop_logs_dir = "$env:APPDATA\ai.opencode.desktop\logs"
+        log_path = (Join-Path $env:TEMP 'opencode\opencode.log')
+        desktop_logs_dir = (Join-Path $homeDir '.config/opencode/logs')
         default_ack_timeout_s = 120
         default_lease_minutes = 3
         max_retries = 2

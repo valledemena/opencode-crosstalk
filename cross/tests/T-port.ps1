@@ -10,18 +10,25 @@ $pass = 0; $fail = 0
 # D4 (v1.17): cross-platform child PowerShell (pwsh on Linux, powershell.exe on Windows)
 if (-not $env:TEMP) { $env:TEMP = [System.IO.Path]::GetTempPath().TrimEnd('/', '\') }
 $psExe = if ($env:OS -eq 'Windows_NT') { 'powershell.exe' } elseif (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell.exe' }
+$homeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath('UserProfile') }
 function Assert-True {
     param([bool]$Cond, [string]$Name, [string]$Detail = '')
     if ($Cond) { $script:pass++; Write-Host ("  PASS  {0}" -f $Name) }
     else { $script:fail++; Write-Host ("  FAIL  {0}  {1}" -f $Name, $Detail) }
 }
 
-Write-Host "== T-port: well-known round-trip (USERPROFILE aislado) =="
-$realUser = $env:USERPROFILE
+# D4 (v1.17): cross-platform child PowerShell (pwsh on Linux, powershell.exe on Windows)
+if (-not $env:TEMP) { $env:TEMP = [System.IO.Path]::GetTempPath().TrimEnd('/', '\') }
+$psExe = if ($env:OS -eq 'Windows_NT') { 'powershell.exe' } elseif (Get-Command pwsh -ErrorAction SilentlyContinue) { 'pwsh' } else { 'powershell.exe' }
+$homeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath('UserProfile') }
+
+Write-Host "== T-port: well-known round-trip (HOME aislado) =="
+$realUser = $homeDir
 $isoUser = Join-Path $env:TEMP ('cross_wk_user_' + [System.Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $isoUser -Force | Out-Null
 $wkFile = Join-Path (Join-Path $isoUser '.config\opencode') 'server.port'
 try {
+    $env:HOME = $isoUser
     $env:USERPROFILE = $isoUser
     Assert-True ($null -eq (Get-CrossPortWellKnown)) 'well-known inexistente -> null' (Get-CrossPortWellKnown)
 
@@ -41,6 +48,7 @@ try {
     [System.IO.File]::WriteAllText($wkFile, '', (New-Object System.Text.UTF8Encoding($false)))
     Assert-True ($null -eq (Get-CrossPortWellKnown)) 'archivo vacio -> null (NEMOTRON-N2)' (Get-CrossPortWellKnown)
 } finally {
+    $env:HOME = $realUser
     $env:USERPROFILE = $realUser
     if (Test-Path -LiteralPath $isoUser) { Remove-Item -LiteralPath $isoUser -Recurse -Force -ErrorAction SilentlyContinue }
 }
@@ -74,7 +82,7 @@ $sw.Stop()
 Assert-True ($null -eq $scanned) 'scan timeout sin candidatos -> null' $scanned
 Assert-True ($sw.Elapsed.TotalMilliseconds -lt 1000) 'ScanTimeoutMs aborta rapido (<1s)' ([math]::Round($sw.Elapsed.TotalMilliseconds))
 
-$logDir = "$env:APPDATA\ai.opencode.desktop\logs"
+$logDir = (Join-Path $env:HOME '.config\opencode\desktop\logs')
 $haveServer = (Test-Path $logDir) -and [bool](Get-ChildItem $logDir -ErrorAction SilentlyContinue) -and [bool](Get-CrossPassword)
 $script:serverScenarios = 4
 if (-not $haveServer) {

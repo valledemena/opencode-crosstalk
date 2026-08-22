@@ -103,7 +103,13 @@ class CrossFileLock {
         $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
         while ($null -eq $this.Stream) {
             try {
-                $this.Stream = New-Object System.IO.FileStream($this.LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None, 4096, [System.IO.FileOptions]::DeleteOnClose)
+                $platform = Get-CrossPlatform
+                if ($platform -eq [CrossPlatform]::Windows) {
+                    $this.Stream = New-Object System.IO.FileStream($this.LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None, 4096, [System.IO.FileOptions]::DeleteOnClose)
+                } else {
+                    # Unix: NO DeleteOnClose - advisory lock via FileShare.None, explicit cleanup in ReleaseMutex
+                    $this.Stream = New-Object System.IO.FileStream($this.LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None, 4096)
+                }
                 $this.Held = $true
                 return $true
             } catch {

@@ -25,7 +25,11 @@ if (-not $haveServer) {
 function Invoke-CrossCli {
     param([string[]]$CliArgs)
     $tmp = Join-Path $env:TEMP ("cross_cli_" + [System.Guid]::NewGuid().ToString('N') + ".json")
-    & $psExe -NoProfile -ExecutionPolicy Bypass -File $cli @CliArgs 2>$null | Out-File -LiteralPath $tmp -Encoding ascii
+    # v1.17: stderr del hijo (diag warnings) no debe abortar bajo EAP=Stop
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+& $psExe -NoProfile -ExecutionPolicy Bypass -File $cli @CliArgs 2>$null | Out-File -LiteralPath $tmp -Encoding ascii
+$ErrorActionPreference = $prevEap
     $raw = Get-Content -LiteralPath $tmp -Raw
     Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue
     return $raw
