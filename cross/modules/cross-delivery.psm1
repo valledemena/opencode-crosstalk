@@ -322,7 +322,8 @@ function Write-CrossDeliveryLog {
     }
     $logParent = Split-Path -Parent $LogPath
     if ($logParent -and -not (Test-Path -LiteralPath $logParent)) { New-Item -ItemType Directory -Path $logParent -Force | Out-Null }
-    [System.IO.File]::AppendAllText($LogPath, (ConvertTo-Json $line -Compress) + "`n", (New-Object System.Text.UTF8Encoding($false)))
+    # v1.17: mutexed append via Add-CrossLogLine (raw AppendAllText lost lines under concurrent sends)
+    [void](Add-CrossLogLine -Path $LogPath -Line ((ConvertTo-Json $line -Compress)))
     $resState = Get-ResultVal $Result 'state'
     $resOk = Get-ResultVal $Result 'ok'
     $resRc = Get-ResultVal $Result 'reason_code'
