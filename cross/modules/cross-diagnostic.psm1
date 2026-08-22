@@ -618,6 +618,9 @@ function Export-CrossMetrics {
         [string]$OutputPath = '',
         [string]$OutboxPath = ''
     )
+    if ($LogPath -and -not (Test-Path -LiteralPath $LogPath)) {
+        return @{ ok = $false; err = 'LOG_NOT_FOUND'; detail = $LogPath }
+    }
     $m = Get-CrossMetrics -Since $Since -Until $Until -ByAgent $ByAgent -LogPath $LogPath
     if (-not $m.ok) { return @{ ok = $false; err = $m.err; detail = $m.detail } }
     $pending = 0

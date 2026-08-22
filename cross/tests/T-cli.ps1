@@ -210,7 +210,9 @@ Assert-True ($r.total -eq 3) 'metrics CLI total=3' $r.total
 Assert-True ($r.by_outcome.ACK -eq 2 -and $r.by_outcome.NACK -eq 1) 'ACK=2 NACK=1 (historical format counts ACK)' ($r.by_outcome | ConvertTo-Json -Compress)
 $r = Get-Json (Invoke-CrossCli @('metrics', '--log-path', $mlog, '--since', 'ayer'))
 Assert-True (-not $r.ok -and $r.code -eq 64 -and $r.err -eq 'USAGE_ERROR') 'metrics --since invalid -> code 64 USAGE_ERROR' $r.err
-$r = Get-Json (Invoke-CrossCli @('metrics', '--log-path', (Join-Path $env:TEMP 'no_existe_metrics.jsonl')))
+$nonExistLog = Join-Path $env:TEMP ('cross_nolog_' + [System.Guid]::NewGuid().ToString('N') + '.jsonl')
+Remove-Item -LiteralPath $nonExistLog -Force -ErrorAction SilentlyContinue
+$r = Get-Json (Invoke-CrossCli @('metrics', '--log-path', $nonExistLog))
 Assert-True (-not $r.ok -and $r.code -eq 64 -and $r.err -eq 'LOG_NOT_FOUND') 'metrics non-existent log -> LOG_NOT_FOUND' $r.err
 
 Write-Host "== T-cli: metrics --prometheus (v1.14) =="
@@ -222,7 +224,9 @@ $promFile = Join-Path $metricsDir 'out.prom'
 $r = Get-Json (Invoke-CrossCli @('metrics', '--prometheus', '--prometheus-output', $promFile, '--log-path', $mlog))
 Assert-True ($r.ok -and $r.prometheus_file -eq $promFile) 'prometheus --prometheus-output writes file' ($r | ConvertTo-Json -Compress)
 Assert-True ((Test-Path -LiteralPath $promFile) -and ((Get-Content $promFile -Raw) -match '(?m)^# TYPE cross_messages_total counter$')) 'prom file exists with TYPE line' $promFile
-$r = Get-Json (Invoke-CrossCli @('metrics', '--prometheus', '--log-path', (Join-Path $env:TEMP 'no_existe_prom.jsonl')))
+$nonExistProm = Join-Path $env:TEMP ('cross_nolog_' + [System.Guid]::NewGuid().ToString('N') + '.jsonl')
+Remove-Item -LiteralPath $nonExistProm -Force -ErrorAction SilentlyContinue
+$r = Get-Json (Invoke-CrossCli @('metrics', '--prometheus', '--log-path', $nonExistProm))
 Assert-True (-not $r.ok -and $r.code -eq 64 -and $r.err -eq 'LOG_NOT_FOUND') 'prometheus non-existent log -> LOG_NOT_FOUND' $r.err
 
 Write-Host ""
