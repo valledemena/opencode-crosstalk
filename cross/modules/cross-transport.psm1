@@ -126,7 +126,7 @@ function Test-CrossHealthRaw {
         $url = "http://127.0.0.1:$Port/global/health"
         $tmp = Join-Path $env:TEMP ("cross_health_" + [System.Guid]::NewGuid().ToString('N') + ".txt")
         $netrcFile = $null
-        try { $netrcFile = Get-CrossNetrcFile -Password $Password } catch { }
+        try { $netrcFile = Get-CrossNetrcFile -Password $Password } catch { Write-CrossDiag -Level debug -Message "Test-CrossHealthRaw: netrc best-effort no disponible: $_" }
         $curl = Get-CrossCurlCommand   # F3
         if ($netrcFile) { $code = & $curl -s -o $tmp -w "%{http_code}" --max-time 5 --netrc-file $netrcFile $url 2>$null }
         else { $code = & $curl -s -o $tmp -w "%{http_code}" --max-time 5 -u "opencode:$Password" $url 2>$null }
@@ -245,7 +245,7 @@ function Get-CrossPortFromLog {
                     # restart URL); take the LAST match = most recent server start.
                     $ms = [regex]::Matches($content, "server ready[^\r\n]*url: 'http://127\.0\.0\.1:(\d+)'")
                     if ($ms.Count -gt 0) { return [int]$ms[$ms.Count - 1].Groups[1].Value }
-                } catch {}
+                } catch { Write-CrossDiag -Level debug -Message "Get-CrossPortFromLog: fallo best-effort leyendo main.log (Unix fallback): $_" }
             }
         }
         return $null
@@ -259,7 +259,7 @@ function Get-CrossPortFromLog {
         # F2 (v1.16): see above.
         $ms = [regex]::Matches($content, "server ready[^\r\n]*url: 'http://127\.0\.0\.1:(\d+)'")
         if ($ms.Count -gt 0) { return [int]$ms[$ms.Count - 1].Groups[1].Value }
-    } catch {}
+    } catch { Write-CrossDiag -Level debug -Message "Get-CrossPortFromLog: fallo best-effort leyendo main.log: $_" }
     return $null
 }
 
@@ -316,7 +316,7 @@ function Get-CrossSessionState {
         return @{ ok = $false; status_code = [int]$api.status; status = ''; last_activity_at = ''; model = ''; checkable = $false }
     }
     $s = $null
-    try { $s = $api.body | ConvertFrom-Json } catch { }
+    try { $s = $api.body | ConvertFrom-Json } catch { Write-CrossDiag -Level debug -Message "Get-CrossSessionState: fallo parse JSON best-effort: $_" }
     if ($null -eq $s) { return @{ ok = $false; status_code = 200; status = ''; last_activity_at = ''; model = ''; checkable = $false } }
     function Get-Str2([object]$o, [string]$k) {
         $p = $o.PSObject.Properties[$k]
@@ -458,7 +458,7 @@ function Invoke-CrossApi {
     )
     $url = "http://127.0.0.1:$Port$Path"
     $netrcFile = $null
-    try { $netrcFile = Get-CrossNetrcFile -Password $Password } catch { }
+    try { $netrcFile = Get-CrossNetrcFile -Password $Password } catch { Write-CrossDiag -Level debug -Message "Invoke-CrossApi: netrc best-effort no disponible: $_" }
     if ($netrcFile) { $args = @('-s', '--max-time', "$TimeoutSec", '--netrc-file', $netrcFile, '-X', $Method) }
     else { $args = @('-s', '--max-time', "$TimeoutSec", '-u', "opencode:$Password", '-X', $Method) }
     $tmpBody = $null
