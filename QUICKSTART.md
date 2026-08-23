@@ -5,7 +5,7 @@ Verifiable messaging between OpenCode sessions (outbox + ACK/NACK + DLQ).
 ## 1. Prerequisites
 - OpenCode Desktop running (serves the local API).
 - PowerShell 5.1+ (Windows) or pwsh.
-- `curl` available (`cross health` verifies it).
+ - `curl` available — resolved cross-platform by `Get-CrossCurlCommand` (Windows: `curl.exe`; Linux/macOS: `curl`); `cross health` validates it.
 - `OPENCODE_SERVER_PASSWORD` in the environment or in `~/.config/opencode/.env`.
 
 ## 2. Set your identity (1 minute)
