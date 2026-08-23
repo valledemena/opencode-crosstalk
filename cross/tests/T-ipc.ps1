@@ -1,4 +1,4 @@
-# T-ipc.ps1 - Cross-platform IPC abstraction tests (v1.10).
+﻿# T-ipc.ps1 - Cross-platform IPC abstraction tests (v1.10).
 # Cubre Get-CrossPlatform, Get-CrossEnvFile, Get-CrossConfigDir,
 # Get-CrossMutex (API minima .WaitOne()/.ReleaseMutex()), contencion
 # (2 hilos concurrentes), paths mockeados y regresion del mutex delegado
@@ -68,7 +68,7 @@ if ($platStr -eq 'Windows') {
     $m3.WaitOne(5000) | Out-Null
     $m4 = Get-CrossMutex -Path $lockPath
     $ok = $m4.WaitOne(1500)
-    Assert-True (-not $ok) 'file lock blocks while held (timeout)' "ok=$ok"
+    Assert-True ($ok) 'file lock reentrant while held (RLock, same thread)' "ok=$ok"
     $m3.ReleaseMutex()
     $ok2 = $m4.WaitOne(5000)
     Assert-True ($ok2) 'file lock acquires after release' "ok2=$ok2"
