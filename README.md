@@ -12,14 +12,14 @@
 
 OpenCode Desktop runs a local HTTP server (`http://127.0.0.1:PORT`) that exposes each chat session. CROSS-TALK builds on top of that to enable:
 
-- **Inter-session messaging** â€” send messages between any two sessions in the same project
-- **Durable outbox** â€” messages survive crashes; tracked in `outbox.md`
-- **ACK/NACK handshakes** â€” sender knows if the recipient processed the message
-- **Idempotent delivery** â€” at-least-once with deduplication via `idempotencia-procesados.md`
-- **Automatic retries** â€” configurable backoff, lease renewal, and circuit breakers
-- **Diagnostics** â€” classify failures (provider down, agent sleeping, config error) from OpenCode logs
-- **Dead letter queue** â€” messages that can't be delivered after max retries go to DLQ for human review
-- **AVISO-SPOF** â€” passive detection if the leader session goes silent
+- **Inter-session messaging** — send messages between any two sessions in the same project
+- **Durable outbox** — messages survive crashes; tracked in `outbox.md`
+- **ACK/NACK handshakes** — sender knows if the recipient processed the message
+- **Idempotent delivery** — at-least-once with deduplication via `idempotencia-procesados.md`
+- **Automatic retries** — configurable backoff, lease renewal, and circuit breakers
+- **Diagnostics** — classify failures (provider down, agent sleeping, config error) from OpenCode logs
+- **Dead letter queue** — messages that can't be delivered after max retries go to DLQ for human review
+- **AVISO-SPOF** — passive detection if the leader session goes silent
 
 ## Quick start
 
@@ -31,7 +31,7 @@ OpenCode Desktop runs a local HTTP server (`http://127.0.0.1:PORT`) that exposes
 
 > **Platform support:** Windows is the primary, fully-tested platform. Linux /
 > macOS / WSL work through the cross-platform layer in `cross-ipc.psm1`
-> (named mutex on Windows; advisory file lock on Unix â€” exclusive in
+> (named mutex on Windows; advisory file lock on Unix — exclusive in
 > practice, not a POSIX `flock()`). The test suite runs server-independent
 > suites on CI (`windows-latest`); Unix is supported but less battle-tested.
 
@@ -44,7 +44,7 @@ OpenCode Desktop runs a local HTTP server (`http://127.0.0.1:PORT`) that exposes
 powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
 ```
 
-3. Or configure manually â€” edit `cross/cross.config.json` (or copy it to `cross/cross.config.local.json` so your identity never gets committed):
+3. Or configure manually — edit `cross/cross.config.json` (or copy it to `cross/cross.config.local.json` so your identity never gets committed):
 
 ```json
 {
@@ -109,47 +109,47 @@ With 3 sessions open (A = you, B = advisor, C = advisor):
 
 That is the whole loop: outbox -> prompt_async -> ACK/NACK -> retry or DLQ. The
 anti-sleep protocol (`ESTADO:` heartbeats, AVISO-SPOF) keeps long-running
-teams alive â€” see [CROSS_TALK.md](CROSS_TALK.md) sections 4 and 12.
+teams alive — see [CROSS_TALK.md](CROSS_TALK.md) sections 4 and 12.
 
 ## Project structure
 
 ```
 cross-talk/
-â”œâ”€â”€ CROSS_TALK.md              # Protocol specification (v1.8.3)
-â”œâ”€â”€ CHANGELOG.md               # Version history and discoveries
-â”œâ”€â”€ CROSS_WINDOWS.md           # PowerShell 5.1 / Windows pitfalls
-â”œâ”€â”€ install.ps1                # One-command setup (detects session, writes local config)
-â”œâ”€â”€ LICENSE                    # MIT
-â”œâ”€â”€ README.md                  # This file
-â””â”€â”€ cross/
-    â”œâ”€â”€ cross.ps1              # CLI entry point (20+ subcommands)
-    â”œâ”€â”€ cross.config.json      # Publish template (empty identity)
-    â”œâ”€â”€ cross.config.local.json# Your identity (git-ignored, created by install.ps1)
-    â”œâ”€â”€ lib/
-    â”‚   â””â”€â”€ cross-format.psm1  # Formatting utilities
-    â”œâ”€â”€ modules/
-    â”‚   â”œâ”€â”€ cross-transport.psm1   # HTTP transport, port detection, netrc, config
-    â”‚   â”œâ”€â”€ cross-state.psm1       # Outbox, idempotency (checksums v1.7), mutex
-    â”‚   â”œâ”€â”€ cross-delivery.psm1    # ACK/NACK parsing, retries, leases
-    â”‚   â”œâ”€â”€ cross-envelope.psm1    # JSON envelope v2 + v1 fallback
-    â”‚   â”œâ”€â”€ cross-diagnostic.psm1  # Status, metrics, doctor, Prometheus export
-    â”‚   â””â”€â”€ cross-action.psm1      # ack, nack, resume, restart, etc.
-    â””â”€â”€ tests/                 # 33 test suites (7000+ assertions)
-        â”œâ”€â”€ T-ack.ps1
-        â”œâ”€â”€ T-nack.ps1
-        â”œâ”€â”€ T-send.ps1
-        â”œâ”€â”€ T-fuzz.ps1
-        â””â”€â”€ ... (33 files)
+├── CROSS_TALK.md              # Protocol specification (v1.8.3)
+├── CHANGELOG.md               # Version history and discoveries
+├── CROSS_WINDOWS.md           # PowerShell 5.1 / Windows pitfalls
+├── install.ps1                # One-command setup (detects session, writes local config)
+├── LICENSE                    # MIT
+├── README.md                  # This file
+└── cross/
+    ├── cross.ps1              # CLI entry point (20+ subcommands)
+    ├── cross.config.json      # Publish template (empty identity)
+    ├── cross.config.local.json# Your identity (git-ignored, created by install.ps1)
+    ├── lib/
+    │   └── cross-format.psm1  # Formatting utilities
+    ├── modules/
+    │   ├── cross-transport.psm1   # HTTP transport, port detection, netrc, config
+    │   ├── cross-state.psm1       # Outbox, idempotency (checksums v1.7), mutex
+    │   ├── cross-delivery.psm1    # ACK/NACK parsing, retries, leases
+    │   ├── cross-envelope.psm1    # JSON envelope v2 (v2-only since v2.0)
+    │   ├── cross-diagnostic.psm1  # Status, metrics, doctor, Prometheus export
+    │   └── cross-action.psm1      # ack, nack, resume, restart, etc.
+    └── tests/                 # 34 test suites (7100+ assertions)
+        ├── T-ack.ps1
+        ├── T-nack.ps1
+        ├── T-send.ps1
+        ├── T-fuzz.ps1
+        └── ... (33 files)
 ```
 
 ## How it works
 
-1. **Autodetect credentials** â€” port and password are read from OpenCode logs before every send (they change on restart)
-2. **Write to outbox** â€” message is recorded in `outbox.md` with state `EN_VUELO`
-3. **Send via HTTP** â€” `prompt_async` wakes the target agent
-4. **Wait for ACK** â€” sender polls for acknowledgment (configurable timeout)
-5. **Classify result** â€” ACK â†’ `CONFIRMADO`, NACK â†’ reason logged, timeout â†’ diagnostic from logs
-6. **Retry or DLQ** â€” on failure, retry with backoff; after max retries, move to dead letter queue
+1. **Autodetect credentials** — port and password are read from OpenCode logs before every send (they change on restart)
+2. **Write to outbox** — message is recorded in `outbox.md` with state `EN_VUELO`
+3. **Send via HTTP** — `prompt_async` wakes the target agent
+4. **Wait for ACK** — sender polls for acknowledgment (configurable timeout)
+5. **Classify result** — ACK → `CONFIRMADO`, NACK → reason logged, timeout → diagnostic from logs
+6. **Retry or DLQ** — on failure, retry with backoff; after max retries, move to dead letter queue
 
 The full protocol rules are in [CROSS_TALK.md](CROSS_TALK.md) (section 4 for messaging, section 12 for the anti-sleep protocol).
 
@@ -172,7 +172,7 @@ graph TB
     end
     subgraph "Delivery Layer"
         L[cross-delivery.psm1] --> M[cross-envelope.psm1]
-        M --> N[JSON Envelope v2 + fallback v1]
+        M --> N[JSON Envelope v2 (v2-only since v2.0)]
         L --> O[ACK/NACK Parser]
     end
     subgraph "Diagnostic Layer"
