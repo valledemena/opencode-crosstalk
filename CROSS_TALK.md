@@ -904,9 +904,9 @@ from the received envelope (12.1), so the leader correlates without ambiguity:
 NACK:<original_token>:<SENDER_SESSION_ID>:<SENDER_MODEL>:<REASON>:<msg_id>:<run_id>
 ```
 
-The engine's parser (`Parse-CrossEnvelope`) detects 6 segments and extracts
-`msg_id`/`run_id`; 4-5 segments remain valid (superset, no
-breaking change).
+The engine's parser (`Parse-CrossEnvelope`) extracts `msg_id`/`run_id` from the
+v2 NACK envelope; v1 free-text NACK formats (legacy segments) are **rejected**
+in v2.0 (breaking).
 
 **Closed reasons (fixed enumeration, no free text -- the leader classifies them):**
 
@@ -1678,17 +1678,16 @@ files (audit, escalated, DLQ, outbox); they do not rewrite previous lines.
 > | LOW/MEDIUM | HIGH | **`session.abort`** | Opt-in / soft-abort only first. Blind aborting may leave inconsistent states. |
 > | LOW/MEDIUM | MEDIUM-HIGH | **Envelope v2 exclusive (Fase 3, v2.0)** | COMPLETED (v1.17): v1 parser removed, `Parse-CrossEnvelope` is the only parser. v2 (`ENVELOPE-V2: {json}` / pure JSON) is the only accepted format. |
 
-- **Envelope JSON v2 exclusive (Fase 3, v2.0):** endgame of improvement #1
-  (GLM-5.3 design, "Sobre estructurado JSON"). The engine currently accepts
-  v2 first and falls back to v1 (see sec 12.1 ENVELOPE-V2 note, v1.9.0). Fase 3
-  makes v2 the ONLY format: `Parse-CrossEnvelope` (v2-only, legacy
+- **Envelope JSON v2 exclusive (Fase 3, v2.0): COMPLETED.** Endgame of improvement #1
+  (GLM-5.3 design, "Sobre estructurado JSON"). Since v2.0 the engine accepts
+  **only** `ENVELOPE-V2: {json}` / pure JSON — v1 legacy ACK:/NACK: free-text formats are
+  **rejected** (see sec 12.1 ENVELOPE-V2 note, v1.9.0). Fase 3
+  made v2 the ONLY format: `Parse-CrossEnvelope` (v2-only, legacy
   v1 regexes removed in v1.17) is the sole parser, and the contract becomes
   fully validated (`v=2`, `type` --- {message,ack,nack}, mandatory non-empty
   `msg_id`/`timestamp`, `requires_ack` bool -- invariants already enforced by
-  the T-fuzz fuzzer). **Dependencies:** Fase 2 deprecation first (v1.10,
-  warning on v1 messages so advisors migrate), plus live coordination with
-  the 3 advisors (MIMO, NEMOTRON, BIG PICKLE) since they still reply in v1
-  formats. Breaking change -> v2.0 versioning.
+  the T-fuzz fuzzer). **Shipped in v2.0.0 as a BREAKING change** (no v1 fallback).
+  Dependencies (Fase 2 deprecation v1.10, advisor migration) are satisfied.
 
 - **Long-polling / SSE:** if the OpenCode Desktop API ever supports them,
   replace active polling (section 6) with these mechanisms to reduce

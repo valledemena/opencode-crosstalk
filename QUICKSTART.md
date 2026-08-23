@@ -2,6 +2,10 @@
 
 Verifiable messaging between OpenCode sessions (outbox + ACK/NACK + DLQ).
 
+> **v2.0 Breaking change:** only `ENVELOPE-V2` JSON messages are accepted.
+> Legacy v1 free-text `ACK:`/`NACK:` formats are rejected. Use `cross send`
+> (which emits v2) — do not craft v1-style lines by hand.
+
 ## 1. Prerequisites
 - OpenCode Desktop running (serves the local API).
 - PowerShell 5.1+ (Windows) or pwsh.
