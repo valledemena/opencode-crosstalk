@@ -36,7 +36,7 @@ EN_VUELO -> CONFIRMADO | NACKED | EXPIRADO | DLQ.
 ```powershell
 .\cross.ps1 status              # outbox/DLQ overview
 .\cross.ps1 diagnose --msg X    # why it failed
-.\cross.ps1 metrics             # ACK/NACK/timeout rates, v1 usage
+.\cross.ps1 metrics             # ACK/NACK/timeout rates (v1 usage removed in v2.0)
 ```
 Common errors: SERVER_NOT_FOUND (Desktop closed), AUTH_FAILED (password),
 ACK_TIMEOUT (destination busy - use nudge), DEST_NOT_FOUND (unknown session).
