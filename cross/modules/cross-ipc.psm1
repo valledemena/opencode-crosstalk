@@ -88,29 +88,32 @@ function Get-CrossTempDir {
     }
 }
 
-# Lock por archivo para Unix: expone la misma API minima que el Mutex de
-# Windows (.WaitOne(ms)/.ReleaseMutex()) para que cross-state no cambie.
+# RLock para Unix y Windows: reentrante, usa FileStream + FileShare.None (advisory lock).
+# Expone la misma API que Mutex de Windows (.WaitOne(ms)/.ReleaseMutex()) para que cross-state no cambie.
 class CrossFileLock {
     [string]$LockPath
     [System.IO.FileStream]$Stream = $null
     [bool]$Held = $false
+    [int]$RecursionCount = 0
+    [int]$OwnerThreadId = 0
 
     CrossFileLock([string]$Path) {
         $this.LockPath = $Path
     }
 
     [bool]WaitOne([int]$TimeoutMs) {
+        $currentThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+        if ($this.Held -and $this.OwnerThreadId -eq $currentThreadId) {
+            $this.RecursionCount++
+            return $true
+        }
         $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
         while ($null -eq $this.Stream) {
             try {
-                $platform = Get-CrossPlatform
-                if ($platform -eq [CrossPlatform]::Windows) {
-                    $this.Stream = New-Object System.IO.FileStream($this.LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None, 4096, [System.IO.FileOptions]::DeleteOnClose)
-                } else {
-                    # Unix: NO DeleteOnClose - advisory lock via FileShare.None, explicit cleanup in ReleaseMutex
-                    $this.Stream = New-Object System.IO.FileStream($this.LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None, 4096)
-                }
+                $this.Stream = New-Object System.IO.FileStream($this.LockPath, [System.IO.FileMode]::OpenOrCreate, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None, 4096)
                 $this.Held = $true
+                $this.OwnerThreadId = $this.GetCurrentThreadId()
+                $this.RecursionCount = 1
                 return $true
             } catch {
                 if ((Get-Date) -ge $deadline) { return $false }
@@ -120,13 +123,62 @@ class CrossFileLock {
         return $true
     }
 
+    [int]GetCurrentThreadId() {
+        return [System.Threading.Thread]::CurrentThread.ManagedThreadId
+    }
+
     [void]ReleaseMutex() {
+        if ($this.RecursionCount -gt 1) {
+            $this.RecursionCount--
+            return
+        }
         if ($null -ne $this.Stream) {
             try { $this.Stream.Dispose() } catch { }
             $this.Stream = $null
             $this.Held = $false
+            $this.OwnerThreadId = 0
+            $this.RecursionCount = 0
             try { Remove-Item -LiteralPath $this.LockPath -Force -ErrorAction SilentlyContinue } catch { }
         }
+    }
+
+    [int]GetLockCount() {
+        return $this.RecursionCount
+    }
+}
+
+# RLock wrapper para Windows: Mutex reentrante usando Mutex + tracking de hilo
+class ReentrantMutex {
+    [System.Threading.Mutex]$Mutex
+    [int]$OwnerThreadId = 0
+    [int]$RecursionCount = 0
+
+    ReentrantMutex([string]$Name) {
+        $this.Mutex = New-Object System.Threading.Mutex($false, $Name)
+    }
+
+    [bool]WaitOne([int]$TimeoutMs) {
+        $currentThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+        if ($this.OwnerThreadId -eq $currentThreadId) {
+            $this.RecursionCount++
+            return $true
+        }
+        $result = $this.Mutex.WaitOne($TimeoutMs)
+        if ($result) {
+            $this.OwnerThreadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+            $this.RecursionCount = 1
+        }
+        return $result
+    }
+
+    [void]ReleaseMutex() {
+        if ($this.RecursionCount -gt 1) {
+            $this.RecursionCount--
+            return
+        }
+        $this.Mutex.ReleaseMutex()
+        $this.OwnerThreadId = 0
+        $this.RecursionCount = 0
     }
 }
 
@@ -136,7 +188,7 @@ function Get-CrossMutex {
     $platform = Get-CrossPlatform
     switch ($platform) {
         ([CrossPlatform]::Windows) {
-            return New-Object System.Threading.Mutex($false, "Global\CrossOutbox_$hash")
+            return [ReentrantMutex]::new("Global\CrossOutbox_$hash")
         }
         ([CrossPlatform]::Unix) {
             $lockPath = Join-Path (Get-CrossTempDir) "cross-outbox-$hash.lock"
