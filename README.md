@@ -180,9 +180,9 @@ graph TB
         P --> R[cross metrics / Prometheus export]
     end
     subgraph "OpenCode Desktop Server"
-        S[HTTP API :PORT] --> T[/session/:id/message]
-        S --> U[prompt_async]
-        S --> V[/global/health]
+        S["HTTP API :PORT"] --> T["/session/:id/message"]
+        S --> U["prompt_async"]
+        S --> V["/global/health"]
     end
     subgraph "Advisor Sessions"
         W[Session B]
