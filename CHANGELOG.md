@@ -9,6 +9,21 @@ mixed current specification with changelog and PowerShell pitfalls).
 
 ## Versions
 
+### v2.0.0 (2026-08-23) - Envelope v2 Exclusive (BREAKING)
+
+Origin: leader MUSE SPARK 1.2; advisor council (MIMO, HY3, NEMOTRON, BIG PICKLE, OX ALPHA).
+
+- **BREAKING:** v1 legacy ACK:/NACK: free-text formats REMOVED. Only `ENVELOPE-V2: {json}` /
+  pure JSON accepted. `Parse-CrossEnvelope` is the sole parser (v2-only; legacy v1 regexes
+  removed in v1.17, v1 parser fully deleted in v2.0).
+- **B1 (MIMO):** removed `ConvertTo-CrossV1` (cross-envelope.psm1) and the 6+ legacy
+  ACK:/NACK: regexes in cross-delivery.psm1; `Parse-CrossEnvelope` v2-only, no v1 fallback.
+  `T-contract.ps1` inverted regression (v1 rejected) verified 0 v1 refs.
+- **B2 (HY3):** docs — `CROSS_TALK.md` Fase 3 marked COMPLETED + v2-only (no v1 fallback);
+  `QUICKSTART.md` breaking-change note; this CHANGELOG v2.0.0 entry.
+- **B3 (NEMOTRON):** suite 7098 (no v1); `T-contract`/`T-fuzz`/`T-ack` v2; `T-cli` 47/0,
+  `T-transport` 29/0; CI windows+ubuntu green; tag v2.0.0.
+
 ### v1.17.0 (2026-08-23) - Reliability hardening + multiplatform CI
 
 Origin: Claude diagnosis validated by GLM-5.3, implemented by leader OX ALPHA,
