@@ -18,16 +18,40 @@ with other open chats/sessions in the same project.
 
 ## Contents
 
+### Part I - Setup & sending
 - [Context](#context)
 - [1. Detect server credentials (MANDATORY AUTO-DETECTION)](#1-detect-server-credentials-mandatory-auto-detection)
 - [2. Session Discovery and Team Selection](#2-session-discovery-and-team-selection)
 - [3. Read messages from a session](#3-read-messages-from-a-session)
 - [4. Send a message to another session](#4-send-a-message-to-another-session)
-  - [4a. Deliver a message without the destination agent processing it (`noReply: true`)](#4a-deliver-a-message-without-the-destination-agent-processing-it-noreply-true)
-  - [4b. Send a message and wait for the destination agent's reply (synchronous)](#4b-send-a-message-and-wait-for-the-destination-agents-reply-synchronous)
-  - [4c. Send a message and let the destination agent process it in the background (STANDARD method for cross-talk)](#4c-send-a-message-and-let-the-destination-agent-process-it-in-the-background-standard-method-for-cross-talk)
-  - [4d. The leader communicates IDs and model to members (identity/signature)](#4d-the-leader-communicates-ids-and-model-to-members-identitysignature)
+  - [4a. noReply: deliver without processing](#4a-deliver-a-message-without-the-destination-agent-processing-it-noreply-true)
+  - [4b. Synchronous: wait for reply](#4b-send-a-message-and-wait-for-the-destination-agents-reply-synchronous)
+  - [4c. Background: STANDARD method](#4c-send-a-message-and-let-the-destination-agent-process-it-in-the-background-standard-method-for-cross-talk)
+  - [4d. Identity/signature](#4d-the-leader-communicates-ids-and-model-to-members-identitysignature)
+  - [4e. send_message.ps1 wrapper](#4e-send_messageps1-wrapper-mandatory-auto-detection-anti-corruption-practice)
+  - [4e.2. Send-CrossMessage.ps1 enhanced](#4e2-send-crossmessageps1-enhanced-wrapper-v18)
+  - [4f. Minimal critical rules](#4f-minimal-critical-rules-fallback-handshake-v18)
 
+### Part II - Replying & verifying
+- [5. Complete example: replying](#5-complete-example-replying-to-a-session-that-messaged-you)
+  - [5.1. Wake-up mechanism](#51-wake-up-mechanism-receiving-without-polling)
+- [6. Verify that the other session replied](#6-verify-that-the-other-session-replied)
+  - [6.1. Diagnosis of stuck advisor](#61-diagnosis-of-a-stuck--sigue-advisor)
+
+### Part III - Reliability & operations
+- [7. Delivery confirmation (ACK)](#7-delivery-confirmation-ack)
+  - [7.1-7.6. ACK subsections](#71-ack-format)
+- [8. Inter-session coordination](#8-inter-session-coordination-protocol-collaborative-tasks)
+  - [8.1-8.2. Coordination subsections](#81-analysis-of-large-projects-do-not-exhaust-context)
+- [9. Traceability and auditing](#9-traceability-and-auditing-audit_logmd)
+  - [9.1-9.2. Audit subsections](#91-format-of-each-line)
+- [10. Session and task monitoring](#10-session-and-task-monitoring)
+  - [10.1-10.3. Monitoring subsections](#101-quick-status-query-with-get-sessionid)
+- [11. Known issues and solutions](#11-known-issues-and-solutions)
+
+### Part IV - Anti-sleep protocol
+- [12. Anti-sleep protocol](#12-anti-sleep-protocol-v16-with-v161-corrections)
+  - [12.1-12.15. Anti-sleep subsections](#121-standard-message-envelope)
 
 ## Context
 
@@ -346,28 +370,8 @@ This way no one guesses or copies other people's IDs.
 `cross/send_message.ps1` (canonical wrapper, delegates to `cross send`):
 
 ```powershell
+# (0) Run section 1 credential detection first ($port, $password in scope).
 # Legacy signature: -Destino -Texto [-NoReply] [-Puerto -Password] [-LegacyMode]
-param(
-  [Parameter(Mandatory=$true)][string]$Destino,
-  [Parameter(Mandatory=$true)][string]$Texto,
-  [string]$Puerto,
-  [string]$Password,
-  [switch]$NoReply,
-  [switch]$LegacyMode
-)
-$ErrorActionPreference = 'Stop'
-$MyRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Cli = Join-Path $MyRoot 'cross.ps1'
-
-if ($LegacyMode) {
-  # Direct HTTP path: ALWAYS auto-detect credentials, ignore fixed values (RULE v1.4).
-  $logDir = "$env:APPDATA\ai.opencode.desktop\logs"
-  $latestLog = Get-ChildItem $logDir | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-  $Puerto = ([regex]::Match((Get-Content "$($latestLog.FullName)\main.log" -Raw),
-    "server ready.*url: 'http://127\.0\.0\.1:(\d+)'")).Groups[1].Value
-  if (-not $Puerto) { throw "Could not auto-detect server port" }
-  $Password = $env:OPENCODE_SERVER_PASSWORD
-  if (-not $Password) { throw "OPENCODE_SERVER_PASSWORD is not defined in the environment" }
   $payload = @{ parts = @(@{ type = "text"; text = $Texto }) }
   if ($NoReply) { $payload.noReply = $true }
   $json = $payload | ConvertTo-Json -Depth 4
@@ -445,14 +449,7 @@ param(
   [int]$VerifWait = 0             # seconds to poll for the token (0 = no verification)
 )
 
-# ALWAYS AUTO-DETECT (RULE v1.4): port changes on restart, password rotates.
-$logDir = "$env:APPDATA\ai.opencode.desktop\logs"
-$latestLog = Get-ChildItem $logDir | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-$Puerto = ([regex]::Match((Get-Content "$($latestLog.FullName)\main.log" -Raw),
-  "server ready.*url: 'http://127\.0\.0\.1:(\d+)'")).Groups[1].Value
-if (-not $Puerto) { throw "Could not auto-detect server port" }
-$Password = $env:OPENCODE_SERVER_PASSWORD
-if (-not $Password) { throw "OPENCODE_SERVER_PASSWORD is not defined" }
+# (0) Run section 1 credential detection first ($port, $password in scope).
 
 # ASCII payload, no BOM, no shell interpolation (CROSS_WINDOWS.md #1)
 $payload = @{ parts = @(@{ type = "text"; text = $Texto }) }
