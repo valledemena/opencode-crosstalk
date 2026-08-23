@@ -1,11 +1,10 @@
-# cross-ipc.psm1 - Cross-platform IPC abstraction (v1.10).
+# cross-ipc.psm1 - Cross-platform IPC abstraction (v2.1).
 # Capa de bajo nivel con primitivas de plataforma: deteccion de SO, mutex
 # (exclusividad local), rutas de configuracion del usuario y del .env de
 # OpenCode. Los modulos de negocio (state, delivery, diagnostic, action)
 # NO cambian; solo esta capa + helpers de rutas.
-# NOTA: Get-CrossMutex NO es reentrante (igual que System.Threading.Mutex);
-# el lock Unix es advisory (no POSIX flock()), valido para exclusividad
-# local dentro del mismo host (BIG PICKLE-R10, NEMOTRON-R7).
+# RLock: Get-CrossMutex es reentrante + cached por hash (v2.1 B1).
+# El lock Unix usa FileStream + FileShare.None (advisory).
 Set-StrictMode -Version 2.0
 
 enum CrossPlatform {
@@ -15,6 +14,7 @@ enum CrossPlatform {
 }
 
 $script:Platform = $null
+$script:MutexCache = @{}
 
 function Get-CrossPlatform {
     if ($null -ne $script:Platform) { return $script:Platform }
@@ -185,19 +185,25 @@ class ReentrantMutex {
 function Get-CrossMutex {
     param([Parameter(Mandatory=$true)][string]$Path)
     $hash = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($Path))).Replace('-', '').Substring(0, 24)
+    if ($script:MutexCache.ContainsKey($hash)) {
+        return $script:MutexCache[$hash]
+    }
     $platform = Get-CrossPlatform
+    $mutex = $null
     switch ($platform) {
         ([CrossPlatform]::Windows) {
-            return [ReentrantMutex]::new("Global\CrossOutbox_$hash")
+            $mutex = [ReentrantMutex]::new("Global\CrossOutbox_$hash")
         }
         ([CrossPlatform]::Unix) {
             $lockPath = Join-Path (Get-CrossTempDir) "cross-outbox-$hash.lock"
-            return [CrossFileLock]::new($lockPath)
+            $mutex = [CrossFileLock]::new($lockPath)
         }
         default {
             throw "PLATFORM_UNSUPPORTED: $($platform)"
         }
     }
+    $script:MutexCache[$hash] = $mutex
+    return $mutex
 }
 
 Export-ModuleMember -Function Get-CrossPlatform, Get-CrossConfigDir, Get-CrossEnvFile, Get-CrossTempDir, Get-CrossMutex
