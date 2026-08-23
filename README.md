@@ -172,7 +172,7 @@ graph TB
     end
     subgraph "Delivery Layer"
         L[cross-delivery.psm1] --> M[cross-envelope.psm1]
-        M --> N[JSON Envelope v2 (v2-only since v2.0)]
+        M --> N["JSON Envelope v2 (v2-only since v2.0)"]
         L --> O[ACK/NACK Parser]
     end
     subgraph "Diagnostic Layer"
