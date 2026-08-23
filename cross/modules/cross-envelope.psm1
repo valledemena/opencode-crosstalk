@@ -193,32 +193,4 @@ function Parse-CrossEnvelope {
     }
 }
 
-function ConvertTo-CrossV1 {
-    param(
-        [Parameter(Mandatory=$true)]$ParsedEnvelope
-    )
-    if (-not $ParsedEnvelope.valid -or $ParsedEnvelope.type -notin @('message', 'ack', 'nack')) { return '' }
-    if ($ParsedEnvelope.type -eq 'message') {
-        $parts = @("msg_id=$($ParsedEnvelope.msg_id)")
-        if ($ParsedEnvelope.run_id) { $parts += "run_id=$($ParsedEnvelope.run_id)" }
-        if ($ParsedEnvelope.token) { $parts += "token=$($ParsedEnvelope.token)" }
-        $parts += "requiere_ack=$($ParsedEnvelope.requires_ack.ToString().ToLower())"
-        if ($ParsedEnvelope.lease) { $parts += "lease=$($ParsedEnvelope.lease)" }
-        if ($ParsedEnvelope.successor) { $parts += "sucesor=$($ParsedEnvelope.successor)" }
-        if ($ParsedEnvelope.timestamp) { $parts += "timestamp=$($ParsedEnvelope.timestamp)" }
-        return "[$($parts -join ' | ')]"
-    }
-    if ($ParsedEnvelope.type -eq 'ack') {
-        $segs = @('ACK', $ParsedEnvelope.token)
-        if ($ParsedEnvelope.emitter) { $segs += $ParsedEnvelope.emitter }
-        if ($ParsedEnvelope.model) { $segs += $ParsedEnvelope.model }
-        return ($segs -join ':')
-    }
-    $segs = @('NACK', $ParsedEnvelope.token)
-    if ($ParsedEnvelope.emitter) { $segs += $ParsedEnvelope.emitter }
-    if ($ParsedEnvelope.model) { $segs += $ParsedEnvelope.model }
-    if ($ParsedEnvelope.reason) { $segs += $ParsedEnvelope.reason }
-    return ($segs -join ':')
-}
-
-Export-ModuleMember -Function New-CrossEnvelope, New-CrossAckJson, New-CrossNackJson, Format-CrossEnvelopeV2, Parse-CrossEnvelope, ConvertTo-CrossV1
+Export-ModuleMember -Function New-CrossEnvelope, New-CrossAckJson, New-CrossNackJson, Format-CrossEnvelopeV2, Parse-CrossEnvelope
