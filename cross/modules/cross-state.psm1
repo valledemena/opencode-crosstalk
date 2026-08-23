@@ -580,18 +580,19 @@ function Add-CrossLogLine {
     param(
         [Parameter(Mandatory=$true)][string]$Path,
         [Parameter(Mandatory=$true)][string]$Line,
-        [int]$MaxRetries = 3,
-        [int[]]$BackoffMs = @(200, 400, 800)
+        [int]$MaxRetries = 5,
+        [int[]]$BackoffMs = @(100, 200, 400, 800, 1600)
     )
     $parent = Split-Path -Parent $Path
     if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-    # v1.17: serialize cross-process appends via the same named-mutex family used
+    # v1.18: serialize cross-process appends via the same named-mutex family used
     # by outbox/idempotencia (prevents lost lines under concurrent bursts).
+    # Hardening E4: mutex 10s->30s, retries 3->5, backoff 200/400/800->100/200/400/800/1600, timeout mutex 10s->30s.
     $mutex = Get-OutboxMutex -Path $Path
     $locked = $false
     try {
-        $locked = $mutex.WaitOne(10000)
-        if (-not $locked) { return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not acquire log mutex within 10s' } }
+        $locked = $mutex.WaitOne(30000)
+        if (-not $locked) { return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not acquire log mutex within 30s' } }
         for ($i = 0; $i -lt $MaxRetries; $i++) {
             try {
                 [System.IO.File]::AppendAllText($Path, $Line + "`n", (New-Object System.Text.UTF8Encoding($false)))
@@ -602,11 +603,10 @@ function Add-CrossLogLine {
                 return @{ ok = $false; err = 'LOG_WRITE_ERROR'; detail = $_.Exception.Message }
             }
         }
-        return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not append the line after retries (backoff 200/400/800ms)' }
+        return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not append the line after retries (backoff 100/200/400/800/1600ms)' }
     } finally {
         if ($locked) { try { $mutex.ReleaseMutex() } catch { } }
     }
-    return @{ ok = $false; err = 'LOG_LOCKED'; detail = 'could not append the line after retries (backoff 200/400/800ms)' }
 }
 
 function Write-AuditEntry {

@@ -907,7 +907,7 @@ from the received envelope (12.1), so the leader correlates without ambiguity:
 NACK:<original_token>:<SENDER_SESSION_ID>:<SENDER_MODEL>:<REASON>:<msg_id>:<run_id>
 ```
 
-The engine's parser (`Parse-CrossAckText`) detects 6 segments and extracts
+The engine's parser (`Parse-CrossEnvelope`) detects 6 segments and extracts
 `msg_id`/`run_id`; 4-5 segments remain valid (superset, no
 breaking change).
 
@@ -1278,9 +1278,8 @@ the number of DELIVERIES of the logical message (`msg_id`). Rules:
 > structured line to the message body -- `ENVELOPE-V2: {json}` (v2 envelope,
 > see `cross/modules/cross-envelope.psm1`). The v1 envelope above is
 > UNCHANGED and remains the canonical format; v2 is an additional, validated
-> representation (`v=2`, `type` in {message,ack,nack}). `Parse-CrossAckText`
-> tries v2 first and falls back to v1, so old advisors and new ones interoperate.
-> Fase 2 (v1.10) will deprecate v1; Fase 3 (v2.0) will make v2 exclusive.
+> representation (`v=2`, `type` in {message,ack,nack}). `Parse-CrossEnvelope`
+> is the only parser (v1 removed in v1.17). Fase 3 complete.
 
 ### 12.2 Durable outbox (BEFORE sending)
 
@@ -1680,13 +1679,13 @@ files (audit, escalated, DLQ, outbox); they do not rewrite previous lines.
 > | MEDIUM | MEDIUM-HIGH | **SSE / long-polling** | Only if the backend supports it; if not, do NOT implement. Test experimentally first: `GET /event`, create activity, observe `session.status`/`message.updated`/`session.idle`/`session.error` (external review). |
 > | LOW | LOW | **`@opencode-ai/sdk` SDK** | DX improvement; `curl`+ASCII works now. Verify semantics first. |
 > | LOW/MEDIUM | HIGH | **`session.abort`** | Opt-in / soft-abort only first. Blind aborting may leave inconsistent states. |
-> | LOW/MEDIUM | MEDIUM-HIGH | **Envelope v2 exclusive (Fase 3, v2.0)** | Breaking: remove the v1 parser and the legacy regexes in `Parse-CrossAckText`; v2 (`ENVELOPE-V2: {json}` / pure JSON) becomes the only accepted format. Requires Fase 2 (v1.10 deprecation warning, `ConvertTo-CrossV1` already exists) and all 3 advisors answering v2 stably before disabling v1. |
+> | LOW/MEDIUM | MEDIUM-HIGH | **Envelope v2 exclusive (Fase 3, v2.0)** | COMPLETED (v1.17): v1 parser removed, `Parse-CrossEnvelope` is the only parser. v2 (`ENVELOPE-V2: {json}` / pure JSON) is the only accepted format. |
 
 - **Envelope JSON v2 exclusive (Fase 3, v2.0):** endgame of improvement #1
   (GLM-5.3 design, "Sobre estructurado JSON"). The engine currently accepts
   v2 first and falls back to v1 (see sec 12.1 ENVELOPE-V2 note, v1.9.0). Fase 3
-  makes v2 the ONLY format: `Parse-CrossAckText` (6+ v1 regexes, legacy
-  special cases E1/firma incompleta) is removed, and the contract becomes
+  makes v2 the ONLY format: `Parse-CrossEnvelope` (v2-only, legacy
+  v1 regexes removed in v1.17) is the sole parser, and the contract becomes
   fully validated (`v=2`, `type` --- {message,ack,nack}, mandatory non-empty
   `msg_id`/`timestamp`, `requires_ack` bool -- invariants already enforced by
   the T-fuzz fuzzer). **Dependencies:** Fase 2 deprecation first (v1.10,

@@ -432,9 +432,8 @@ function Get-CrossReconcile {
 
 function Write-AppendDiagLine {
     param([string]$Path, [string]$Line)
-    $parent = Split-Path -Parent $Path
-    if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-    [System.IO.File]::AppendAllText($Path, $Line + "`n", (New-Object System.Text.UTF8Encoding($false)))
+    # E2 (v1.18): delega a Add-CrossLogLine (elimina duplicación, hereda mutex+retries)
+    return Add-CrossLogLine -Path $Path -Line $Line
 }
 
 function Get-CrossAvisoSpof {
