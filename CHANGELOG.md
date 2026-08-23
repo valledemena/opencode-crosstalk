@@ -1,4 +1,4 @@
-# CHANGELOG — OpenCode Cross-Talk (protocol history)
+﻿# CHANGELOG â€” OpenCode Cross-Talk (protocol history)
 
 Version history, discoveries, and pitfalls of the Cross-Talk protocol.
 The **current rules** are in `CROSS_TALK.md`; this file is history only.
@@ -8,6 +8,12 @@ mixed current specification with changelog and PowerShell pitfalls).
 ---
 
 ## Versions
+
+### v2.1.0 (2026-08-23) - RLock + QUICKSTART
+
+- **B1 (NEMOTRON):** Get-CrossMutex RLock reentrant with MutexCache (CrossFileLock + ReentrantMutex) — T-idempotencia-race 8/8, T-race 5×9/9.
+- **B2 (HY3):** QUICKSTART.md 1 usage removed in v2.0 + Get-CrossCurlCommand docs; CROSS_TALK.md Parts I-IV already in v1.20.
+- **F3 (v1.20):** cross-transport.psm1 5 empty catch {} → Write-CrossDiag debug (higiene).
 
 ### v2.0.0 (2026-08-23) - Envelope v2 Exclusive (BREAKING)
 
@@ -19,7 +25,7 @@ Origin: leader MUSE SPARK 1.2; advisor council (MIMO, HY3, NEMOTRON, BIG PICKLE,
 - **B1 (MIMO):** removed `ConvertTo-CrossV1` (cross-envelope.psm1) and the 6+ legacy
   ACK:/NACK: regexes in cross-delivery.psm1; `Parse-CrossEnvelope` v2-only, no v1 fallback.
   `T-contract.ps1` inverted regression (v1 rejected) verified 0 v1 refs.
-- **B2 (HY3):** docs — `CROSS_TALK.md` Fase 3 marked COMPLETED + v2-only (no v1 fallback);
+- **B2 (HY3):** docs â€” `CROSS_TALK.md` Fase 3 marked COMPLETED + v2-only (no v1 fallback);
   `QUICKSTART.md` breaking-change note; this CHANGELOG v2.0.0 entry.
 - **B3 (NEMOTRON):** suite 7098 (no v1); `T-contract`/`T-fuzz`/`T-ack` v2; `T-cli` 47/0,
   `T-transport` 29/0; CI windows+ubuntu green; tag v2.0.0.
@@ -71,10 +77,10 @@ MUSE SPARK) on the canonical repo. Plan: whiteboard/14 + 18 (CROSS workspace).
 Tests: suite 7098 pass / 0 fail across 35 suites, including new
 T-idempotencia-race.ps1 (8 checks) and T-v1-deprecation.ps1 (5 checks);
 T-doctor updated to expect the new doctor check (7 checks).
-### v1.14.0 (2026-08-20) — Prometheus export + netrc + diagrama README (compatible)
+### v1.14.0 (2026-08-20) â€” Prometheus export + netrc + diagrama README (compatible)
 
-Design origin: external review (GLM-5.3), improvements #6 "Exportación de
-métricas", #7 "Seguridad: manejo de credenciales" y #8 "Diagrama de
+Design origin: external review (GLM-5.3), improvements #6 "ExportaciÃ³n de
+mÃ©tricas", #7 "Seguridad: manejo de credenciales" y #8 "Diagrama de
 arquitectura para README". Plan 45 approved 3/3 CON CAMBIOS by advisors
 (MIMO APROBADO, NEMOTRON APROBADO CON CAMBIOS, BIG PICKLE APROBADO);
 result verified 3/3 APROBADO.
@@ -84,7 +90,7 @@ result verified 3/3 APROBADO.
 CLI (netrc temp file, restrictive ACL); README gains a versioned
 architecture diagram.
 
-- **#6 Prometheus export** — `Export-CrossMetrics` in
+- **#6 Prometheus export** â€” `Export-CrossMetrics` in
   `cross-diagnostic.psm1` (`-Since/-Until/-ByAgent/-LogPath/-OutputPath/
   -OutboxPath`), Prometheus text format 0.0.4: counters
   `cross_messages_total/acked_total/nacked_total/timeout_total/
@@ -99,15 +105,15 @@ architecture diagram.
   stdout (scrapeable) and exits 0; `--prometheus-output PATH` (N4 alias)
   returns JSON with `prometheus_file`. Without `--prometheus` the JSON
   output is unchanged.
-- **#7 netrc** — `Get-CrossNetrcFile` in `cross-transport.psm1`: temp
+- **#7 netrc** â€” `Get-CrossNetrcFile` in `cross-transport.psm1`: temp
   `cross_netrc_<guid>.txt` in TEMP, ASCII content
   (`machine <host>` / `login opencode` / `password`), Windows ACL via
   `icacls /inheritance:r /grant:r` (N2), Unix chmod 600.
   `Invoke-CrossApi` and `Test-CrossHealthRaw` use `--netrc-file` with
-  cleanup after use; if netrc creation fails → silent fallback to `-u`.
+  cleanup after use; if netrc creation fails â†’ silent fallback to `-u`.
   `Invoke-CrossApi` API unchanged.
-- **#8 Diagram** — README `## Arquitectura (v1.14.0)` (N3: versioned
-  title): Mermaid `graph TB` (endpoint resolution cache→well-known→log→
+- **#8 Diagram** â€” README `## Arquitectura (v1.14.0)` (N3: versioned
+  title): Mermaid `graph TB` (endpoint resolution cacheâ†’well-knownâ†’logâ†’
   scan, idempotency v1.7, JSON v2 + v1 fallback, doctor 6 checks, HTTP
   API `/session/:id/message` + prompt_async + `/global/health`, 3
   advisors). Project tree updated (33 suites, 7000+ assertions, new
@@ -123,7 +129,7 @@ Suite result: **7093 pass, 0 fail** (33 suites). `cross validate` clean,
 `cross doctor --human` OK. Backup before implementation:
 `backup_v114_20260820_231500.zip`.
 
-### v1.13.0 (2026-08-20) — contract parser fuzzing (compatible)
+### v1.13.0 (2026-08-20) â€” contract parser fuzzing (compatible)
 
 Design origin: external review (GLM-5.3), improvement #4 "Tests de contrato
 / fuzzing". Plan 44 approved 3/3 CON CAMBIOS by advisors (MIMO, NEMOTRON,
@@ -134,27 +140,27 @@ is accepted); it found 4 real bugs which were fixed (defense + validation).
 API unchanged: `Parse-CrossEnvelope` output schema identical, only internal
 validations hardened.
 
-- **New test `cross/tests/T-fuzz.ps1`** — deterministic (seed `20260820`,
+- **New test `cross/tests/T-fuzz.ps1`** â€” deterministic (seed `20260820`,
   documented in the header, corpus regenerable via `Get-FuzzCorpus`),
-  bounded (< 30 s): 10-valid-input corpus × 8 mutators × 20 mutations + one
+  bounded (< 30 s): 10-valid-input corpus Ã— 8 mutators Ã— 20 mutations + one
   10 MB input per corpus (NEMOTRON-N1: memory/DoS limits) = 1610
-  evaluations × 2 parsers. Mutators: truncate, insert chars, JSON field
+  evaluations Ã— 2 parsers. Mutators: truncate, insert chars, JSON field
   duplication/removal, weird types (null/true/123/[]/{}/NaN/Infinity),
-  broken JSON + garbage, hostile unicode (BOM, RTL, control chars — N4),
+  broken JSON + garbage, hostile unicode (BOM, RTL, control chars â€” N4),
   multiple `ENVELOPE-V2:` per text (N3: first parseable occurrence wins),
   `ENVELOPE-V2:` without JSON / `{}` / `[]`.
 - **Invariants per mutation:** `Parse-CrossEnvelope` and `Parse-CrossAckText`
   never throw; `valid`/`ack`/`nack`/`protocolo` always bool; if
-  `valid=$true` → `format` = v2-json, `type` ∈ {message,ack,nack},
-  `msg_id`/`timestamp` non-empty, `requires_ack` bool; if `ack` → `token`
-  non-empty + `emisor`; if `nack` → `token` non-empty + `razon`;
-  type=message → ack=false and nack=false.
+  `valid=$true` â†’ `format` = v2-json, `type` âˆˆ {message,ack,nack},
+  `msg_id`/`timestamp` non-empty, `requires_ack` bool; if `ack` â†’ `token`
+  non-empty + `emisor`; if `nack` â†’ `token` non-empty + `razon`;
+  type=message â†’ ack=false and nack=false.
 - **Bugs found by the fuzzer and fixed** in `Parse-CrossEnvelope`:
-  - non-int `v` (e.g. `"2x"`) threw an exception outside the try/catch →
+  - non-int `v` (e.g. `"2x"`) threw an exception outside the try/catch â†’
     defensive try/catch + invalid.
-  - empty `msg_id` was accepted (valid=true) → now mandatory non-empty.
-  - missing `timestamp` was accepted → now mandatory with ISO format.
-  - two `ENVELOPE-V2:` on the same line both failed (concatenated JSON) →
+  - empty `msg_id` was accepted (valid=true) â†’ now mandatory non-empty.
+  - missing `timestamp` was accepted â†’ now mandatory with ISO format.
+  - two `ENVELOPE-V2:` on the same line both failed (concatenated JSON) â†’
     iterative truncation at each `}` so the first parseable occurrence wins
     (payloads containing `}` inside strings still work: every `}` position
     is tried).
@@ -162,96 +168,96 @@ validations hardened.
   msg_id rejected, missing timestamp rejected, non-int v rejected,
   duplicated JSON fields tolerated, multi-envelope first-wins, message is
   not ack, BOM before JSON tolerated).
-- **N2 (NEMOTRON):** exact counts documented — 20 mutations × 8 types =
-  160 variants per corpus entry → 1610 total evaluations (asserted).
+- **N2 (NEMOTRON):** exact counts documented â€” 20 mutations Ã— 8 types =
+  160 variants per corpus entry â†’ 1610 total evaluations (asserted).
 - **N5 (NEMOTRON):** seed and corpus regeneration documented in the test.
 
 Suite result: **7063 pass, 0 fail** (33 suites; T-contract 39/0 unchanged,
 T-fuzz 6450/0). `cross validate` clean. Backup before implementation:
 `backup_v113_20260820_221440.zip`.
 
-### v1.12.0 (2026-08-20) — checksums de integridad + `cross doctor` (compatible)
+### v1.12.0 (2026-08-20) â€” checksums de integridad + `cross doctor` (compatible)
 
 Design origin: external review (GLM-5.3), improvement #5 "Idempotencia
-tolerante a corrupción (checksums)". Plan 43 approved 3/3 CON CAMBIOS by
+tolerante a corrupciÃ³n (checksums)". Plan 43 approved 3/3 CON CAMBIOS by
 advisors (MIMO, NEMOTRON, BIG PICKLE); result verified 3/3 APROBADO.
 
 **Principle:** legacy lines (no checksum) are still parsed identically; only
 lines WITH a checksum are verified. Nothing breaks.
 
-- **`Get-CrossChecksum`** (cross-state) — full SHA256 hex of a string
+- **`Get-CrossChecksum`** (cross-state) â€” full SHA256 hex of a string
   (NEMOTRON-N1: 64 hex, not truncated 16).
-- **`Add-IdempotenciaLine`** — writes format **v1.7**:
+- **`Add-IdempotenciaLine`** â€” writes format **v1.7**:
   `msg_id | timestamp | modelo | state | sha256:<64hex>` (SHA256 over the 4
   canonical fields). Header `## Activo (formato v1.7)`; existing v1.6.1 lines
   are preserved untouched.
-- **`Read-IdempotenciaLogEx`** — returns `{records, corrupt_lines,
+- **`Read-IdempotenciaLogEx`** â€” returns `{records, corrupt_lines,
   corrupt_count}`; detects v1.7 lines whose checksum doesn't match (skips
   them, lists in `corrupt_lines`), parses legacy lines without checksum.
-- **`Read-IdempotenciaLog`** — still returns the clean records array
+- **`Read-IdempotenciaLog`** â€” still returns the clean records array
   (API-compatible; no exceptions on corrupt lines).
-- **`Get-MsgState`** — returns last valid record; if ALL entries for a
-  msg_id are corrupt → marker `CORRUPTED_ALL` (NEMOTRON-N2, distinguished
+- **`Get-MsgState`** â€” returns last valid record; if ALL entries for a
+  msg_id are corrupt â†’ marker `CORRUPTED_ALL` (NEMOTRON-N2, distinguished
   from `$null` = no entries); callers that compare against
   `CLAIMED_BY=`/`PROCESADO`/`SUPERSEDED_BY=` don't match and retry safely.
-- **`Test-CrossConsistency`** — adds `checksum corrupto` warning per corrupt
+- **`Test-CrossConsistency`** â€” adds `checksum corrupto` warning per corrupt
   line.
-- **`Repair-CrossIdempotencia`** — non-destructive by default (diagnose
+- **`Repair-CrossIdempotencia`** â€” non-destructive by default (diagnose
   only); `-DryRun` reports without touching; `-Rewrite` rewrites without
   corrupt lines and creates a `.bak` backup first (NEMOTRON-N4). Never
   deletes automatically.
-- **`Get-CrossDoctorReport`** (cross-diagnostic) — 6 checks: config, paths,
+- **`Get-CrossDoctorReport`** (cross-diagnostic) â€” 6 checks: config, paths,
   integrity, password, server, consistencia. Server unavailable in CI
-  (`$env:CI`/`$env:GITHUB_ACTIONS`) → `warn` with `expected_ci=true`,
+  (`$env:CI`/`$env:GITHUB_ACTIONS`) â†’ `warn` with `expected_ci=true`,
   documented as expected, not error (NEMOTRON-N3/N5).
-- **`cross doctor`** (cross.ps1) — read-only subcommand; respects `--config`;
+- **`cross doctor`** (cross.ps1) â€” read-only subcommand; respects `--config`;
   JSON output `{ok, checks[], summary, error_count, warn_count}`.
-- **New test `cross/tests/T-doctor.ps1`** — 27 assertions (round-trip v1.7
+- **New test `cross/tests/T-doctor.ps1`** â€” 27 assertions (round-trip v1.7
   with 64 hex, legacy parsed, corruption detected/skipped, Get-MsgState
   tolerance + CORRUPTED_ALL + null, Repair with/without -Rewrite + .bak,
   consistency warning, doctor schema 6 checks, doctor CLI with broken config).
-- **`T-done.ps1`** — assertion updated to v1.7 PROCESADO with checksum.
+- **`T-done.ps1`** â€” assertion updated to v1.7 PROCESADO with checksum.
 
 Suite result: **613 pass, 0 fail** (32 suites). `cross validate` clean;
 `cross doctor --human` OK. Backup before implementation:
 `backup_v112_20260820_221340.zip`.
 
-### v1.11.0 (2026-08-20) — improved port discovery (well-known + diag) (compatible)
+### v1.11.0 (2026-08-20) â€” improved port discovery (well-known + diag) (compatible)
 
 Design origin: external review (GLM-5.3), improvement #3 "Descubrimiento de
 puerto mejorado". Plan 42 approved 3/3 CON CAMBIOS by advisors (MIMO,
 NEMOTRON, BIG PICKLE); result verified 3/3 APROBADO. Chain order (NEMOTRON-N5):
-**cache → well-known → log → scan**, health check before trusting each source.
+**cache â†’ well-known â†’ log â†’ scan**, health check before trusting each source.
 
-- **`Get-CrossPortWellKnown`** — reads `server.port` from the config dir
-  (`Get-CrossConfigDir`, v1.10). Empty/corrupt/out-of-range file → `$null`
+- **`Get-CrossPortWellKnown`** â€” reads `server.port` from the config dir
+  (`Get-CrossConfigDir`, v1.10). Empty/corrupt/out-of-range file â†’ `$null`
   (no throw, debug log; NEMOTRON-N2).
-- **`Write-CrossPortWellKnown`** — best-effort write of the verified port to
+- **`Write-CrossPortWellKnown`** â€” best-effort write of the verified port to
   `<configdir>/server.port` (creates dir if missing); validates port 1-65535
   before writing (NEMOTRON-N1).
-- **`Write-CrossDiag`** — non-intrusive logging to stderr, prefix
+- **`Write-CrossDiag`** â€” non-intrusive logging to stderr, prefix
   `[cross-diag]`, levels trace/debug/info/warn gated by env `CROSS_DIAG`
   (default `warn`; trace level per NEMOTRON-N4). Used by `Resolve-CrossEndpoint`
   to record each source's verdict/descarte reason.
-- **`Get-CrossPortByScan`** — new `ScanTimeoutMs` param (default 30000,
+- **`Get-CrossPortByScan`** â€” new `ScanTimeoutMs` param (default 30000,
   config `port_scan_timeout_ms`) aborts the loop via Stopwatch; closes the
   worst case of a serial 20+ s scan.
-- **`Resolve-CrossEndpoint`** — chain `cache → well-known → log → scan`;
+- **`Resolve-CrossEndpoint`** â€” chain `cache â†’ well-known â†’ log â†’ scan`;
   new `detection_method='well-known'`; per-source `Write-CrossDiag` and
   effective `ScanTimeoutMs` in diagnostics (NEMOTRON-N3). API unchanged.
-- **New test `cross/tests/T-port.ps1`** — 19 assertions: well-known
-  round-trip (isolated USERPROFILE), invalid/empty/out-of-range → null,
+- **New test `cross/tests/T-port.ps1`** â€” 19 assertions: well-known
+  round-trip (isolated USERPROFILE), invalid/empty/out-of-range â†’ null,
   ports 0/70000 rejected, diag levels (silent default / warn / trace),
-  scan timeout aborts < 1 s, real chain → `detection_method=well-known`,
+  scan timeout aborts < 1 s, real chain â†’ `detection_method=well-known`,
   corrupt well-known falls through to regex/scan.
 
 Suite result: **586 pass, 0 fail** (31 suites). `cross validate` clean.
 Backup before implementation: `backup_v110_20260820_211843.zip`.
 
-### v1.10.0 (2026-08-20) — cross-platform IPC abstraction (compatible)
+### v1.10.0 (2026-08-20) â€” cross-platform IPC abstraction (compatible)
 
 Design origin: external review (GLM-5.3, shared Z.ai chat), improvement #2
-"Abstracción IPC multiplataforma" (alta prioridad). Plan 41 approved 3/3 CON
+"AbstracciÃ³n IPC multiplataforma" (alta prioridad). Plan 41 approved 3/3 CON
 CAMBIOS by advisors (MIMO, NEMOTRON, BIG PICKLE); result verified 3/3 APROBADO.
 
 **Principle:** business modules (state, delivery, diagnostic, action) do NOT
@@ -259,9 +265,9 @@ change; a low-level IPC layer + path helpers is introduced. Windows behavior
 is byte-identical (same SHA256 hash, same `Global\` mutex prefix, same paths);
 Unix (Linux/macOS/WSL) is unlocked.
 
-- **New module `cross/modules/cross-ipc.psm1`** — `CrossPlatform` enum;
+- **New module `cross/modules/cross-ipc.psm1`** â€” `CrossPlatform` enum;
   `Get-CrossPlatform` (PS 5.1 via `$PSVersionTable.PSEdition`, Core via
-  `$IsWindows/$IsLinux/$IsMacOS`, WSL→Unix, result cached in `$script:Platform`);
+  `$IsWindows/$IsLinux/$IsMacOS`, WSLâ†’Unix, result cached in `$script:Platform`);
   `Get-CrossConfigDir` (Windows `USERPROFILE\.config\opencode`; Unix
   `XDG_CONFIG_HOME/opencode` else `~/.config/opencode`); `Get-CrossEnvFile`;
   `Get-CrossTempDir` (TEMP/TMP, TMPDIR, `/tmp`); `Get-CrossMutex` (Windows
@@ -269,14 +275,14 @@ Unix (Linux/macOS/WSL) is unlocked.
   `FileStream+FileShare.None+FileOptions.DeleteOnClose`, same
   `.WaitOne(ms)/.ReleaseMutex()` API, 30s retry timeout; documented advisory
   lock, not POSIX flock, and non-reentrant).
-- **`cross-transport.psm1` minimal changes** — import of cross-ipc;
+- **`cross-transport.psm1` minimal changes** â€” import of cross-ipc;
   `$script:PortCache` via `Get-CrossTempDir`; `$script:EnvFile` via
   `Get-CrossEnvFile`; `Get-CrossPortFromLog` Unix fallbacks
   (`<configdir>/desktop/logs`, `~/.local/share/opencode/log`) returning clean
   `$null` without noisy warnings.
-- **`cross-state.psm1` minimal changes** — `Get-OutboxMutex` delegates to
+- **`cross-state.psm1` minimal changes** â€” `Get-OutboxMutex` delegates to
   `Get-CrossMutex` (same signature/hash) and is now exported.
-- **New test `cross/tests/T-ipc.ps1`** — 12 assertions: platform value +
+- **New test `cross/tests/T-ipc.ps1`** â€” 12 assertions: platform value +
   cache, config dir/env file per platform, mutex round-trip (WaitOne/
   ReleaseMutex/reacquire), cross-process contention (Start-Job blocks while
   held, acquires after release; Unix file-lock timeout semantics), regression
@@ -285,9 +291,9 @@ Unix (Linux/macOS/WSL) is unlocked.
 Suite result: **567 pass, 0 fail** (30 suites). `cross validate` clean.
 Backup before implementation: `backup_v191_20260820_200820.zip`.
 
-### v1.9.0 (2026-08-20) — envelope JSON v2, Fase 1 (compatible)
+### v1.9.0 (2026-08-20) â€” envelope JSON v2, Fase 1 (compatible)
 
-Design origin: external review (GLM-5.3, shared Z.ai chat "Revisión Repositorio
+Design origin: external review (GLM-5.3, shared Z.ai chat "RevisiÃ³n Repositorio
 GitHub"), improvement #1 "Sobre estructurado JSON" (alta prioridad). Human
 approved scope: ONLY Fase 1 (v1.9). Plan 40 approved 3/3 CON CAMBIOS by
 advisors; result verified 2/3 APROBADO (MIMO, NEMOTRON); ROUTER discarded
@@ -298,72 +304,72 @@ modified; the v2 envelope travels as an ADDITIONAL line `ENVELOPE-V2: {json}`
 in the message body; the parser accepts v2 first and falls back to v1.
 Backward compatible: existing tests and advisors keep working unchanged.
 
-- **New module `cross/modules/cross-envelope.psm1`** — `New-CrossEnvelope`
+- **New module `cross/modules/cross-envelope.psm1`** â€” `New-CrossEnvelope`
   (JSON v2 message), `New-CrossAckJson`/`New-CrossNackJson` (structured
   ACK/NACK), `Format-CrossEnvelopeV2` (`ENVELOPE-V2: ` prefix, `ConvertTo-AsciiSafe`
   applied internally), `Parse-CrossEnvelope` (line-based `ENVELOPE-V2:` or pure
   JSON; validates `v=2`, `type` in {message,ack,nack}, soft-validates
-  `requires_ack` bool and ISO8601 `timestamp`; failure → `valid=$false` →
-  v1 fallback), `ConvertTo-CrossV1` (v2 → equivalent v1 text, tool for Fase 2+).
-- **`cross-delivery.psm1` minimal changes** — import of the new module at the
+  `requires_ack` bool and ISO8601 `timestamp`; failure â†’ `valid=$false` â†’
+  v1 fallback), `ConvertTo-CrossV1` (v2 â†’ equivalent v1 text, tool for Fase 2+).
+- **`cross-delivery.psm1` minimal changes** â€” import of the new module at the
   top (before use); `New-CrossDelivery` appends the v2 line to the body after
   the v1 envelope; `Parse-CrossAckText` tries v2 first (ack/nack extract
   token/emisor/modelo/razon/msg_id/run_id; `type=message` is NOT a response),
   falling back to the existing v1 logic intact.
-- **New test `cross/tests/T-contract.ps1`** — 39 assertions: round-trip v2
+- **New test `cross/tests/T-contract.ps1`** â€” 39 assertions: round-trip v2
   message/ack/nack, mixed body, pure JSON, `type=message` ignored, v1 fallback
   regression (E1, ACK-PROTOCOLO/NACK-PROTOCOLO, NACK 3-4/4-7 seg), invalid
   `ENVELOPE-V2:` (bad JSON, `v=1`, unknown type, non-bool `requires_ack`,
-  non-ISO `timestamp`) → fallback, v2 precedence over v1, `ConvertTo-CrossV1`
+  non-ISO `timestamp`) â†’ fallback, v2 precedence over v1, `ConvertTo-CrossV1`
   round-trip.
 
-Suite result: **554 pass, 1 fail** (29 suites; T-poll 28/1 in-suite — known
+Suite result: **554 pass, 1 fail** (29 suites; T-poll 28/1 in-suite â€” known
 transient TCP scan failure, passes aislado 29/0; NOT a regression). T-delivery
 66/0 no regressions. `cross validate` clean (0 errors, 0 warnings). Backup
 before implementation: `backup_v184_20260820_182309.zip`.
 
-### v1.8.4 (2026-08-20) — project usability (post-publication)
+### v1.8.4 (2026-08-20) â€” project usability (post-publication)
 
 **Hardening (CI green, same day):** the first CI run exposed that
 `T-cli.ps1` assumed a live OpenCode Desktop server; on the runner it died
 without emitting `RESULT:`, crashing the workflow parser. Fixes:
 
-- **T-cli SKIP guard** — `$haveServer` (logs + password) gates the 9
+- **T-cli SKIP guard** â€” `$haveServer` (logs + password) gates the 9
   server-dependent scenarios; without a server they report
   `26 pass, 0 fail, 9 skipped (server-dependent)`.
-- **Robust workflow loop** — captures `2>&1`, parses `RESULT:` via regex,
+- **Robust workflow loop** â€” captures `2>&1`, parses `RESULT:` via regex,
   and on a test without RESULT prints its last 8 output lines (no more
   null-pointer crash in the runner script).
 - **Transport hardening** (advised by 5 peer reviews): `Get-CrossPortByScan`
   no longer returns an unverified "trap port" when there is no password
   (returns `SERVER_NOT_FOUND` cleanly), and the `TcpClient` loop is wrapped
   in try/catch/finally (reserved-port `SocketException`).
-- **T-cli config --set** — restore of `port_cache_ttl_s` moved to
+- **T-cli config --set** â€” restore of `port_cache_ttl_s` moved to
   `finally`; `.GetType()` assert null-safe.
 
 First release iteration:
 
-- **`install.ps1`** — one-command setup: detects the OpenCode Desktop
+- **`install.ps1`** â€” one-command setup: detects the OpenCode Desktop
   server (port from logs, password from env/.env), lists sessions, picks
   the leader (or first) session, and writes the identity to
   `cross/cross.config.local.json` (git-ignored), then verifies with
   `cross health`.
-- **`cross.config.local.json` override** — `Import-CrossConfig` now merges
+- **`cross.config.local.json` override** â€” `Import-CrossConfig` now merges
   a `cross.config.local.json` next to the base config when present
   (non-empty keys win). The publish template keeps its empty identity;
   contributors never commit their session IDs. New T-transport scenarios
   (4 asserts).
-- **CI workflow** (`.github/workflows/test.yml`) — runs the full suite on
+- **CI workflow** (`.github/workflows/test.yml`) â€” runs the full suite on
   `windows-latest` (pwsh) on every push/PR; badge added to README.
-- **README** — install step, local-config docs, 3-session handshake
+- **README** â€” install step, local-config docs, 3-session handshake
   example, updated project structure.
-- **CONTRIBUTING.md + issue templates** — bug report / feature request /
+- **CONTRIBUTING.md + issue templates** â€” bug report / feature request /
   config, plus contribution conventions (English messages, SKIP pattern,
   tests for every change).
 
 Suite result: **516 pass, 0 fail, 4 skip** (was 512).
 
-### v1.8.3 (2026-08-19) — close BUG II + T-transport SKIP guard (pre-publication)
+### v1.8.3 (2026-08-19) â€” close BUG II + T-transport SKIP guard (pre-publication)
 
 Third GLM review of the v1.8.2 package found 1 real bug introduced by the
 translation and 1 gap:
@@ -373,7 +379,7 @@ translation and 1 gap:
   `unread` flag was never set on parsed entries, so `cross status` reported
   `dlq_unread = 0` even with unpicked DLQ entries. Fixed: writer now emits
   `ESTADO=UNREAD` (parser + doc + fixture already used `ESTADO=`). Added a
-  round-trip test in T-dlq (`Write-CrossDlq` → `Read-DlqLog`: entry parsed,
+  round-trip test in T-dlq (`Write-CrossDlq` â†’ `Read-DlqLog`: entry parsed,
   `unread=true`, `to`/`from`/`retries` correct). The test needed
   `Import-Module cross-diagnostic` and an `@()` wrapper around
   `Read-DlqLog` (PowerShell unwraps the 1-element result into the
@@ -386,7 +392,7 @@ translation and 1 gap:
 
 Suite result: **512 pass, 0 fail, 4 skip** (was 509 pass / 0 fail).
 
-### v1.8.2 (2026-08-19) — close the 31 pre-existing test failures (pre-publication)
+### v1.8.2 (2026-08-19) â€” close the 31 pre-existing test failures (pre-publication)
 
 GLM's second review confirmed all v1.8 bugs closed and recommended fixing
 the 31 pre-existing test failures before publishing (they existed before
@@ -415,7 +421,7 @@ v1.8.1, verified via stash). Three causes, all resolved:
 
 Suite result: **509 pass, 0 fail, 4 skip** (was 493 pass / 31 fail).
 
-### v1.8.1 (2026-08-19) — GLM review fixes (pre-publication)
+### v1.8.1 (2026-08-19) â€” GLM review fixes (pre-publication)
 
 External review by GLM of the v1.8 package found 4 bugs and 3 minor
 observations. All closed before publication:
@@ -425,9 +431,9 @@ observations. All closed before publication:
   (legacy shim) and `T-race.ps1` referenced it. Fixed: the file is now in
   the repo (translated to English), the shim chain works again, T-race
   passes 9/9.
-- **BUG FF (critical):** §4e documented a direct-HTTP wrapper at
+- **BUG FF (critical):** Â§4e documented a direct-HTTP wrapper at
   `whiteboard/send_message.ps1` that did not match the real architecture.
-  Fixed: §4e now documents the canonical `cross/send_message.ps1` (delegates
+  Fixed: Â§4e now documents the canonical `cross/send_message.ps1` (delegates
   to `cross send`, outbox/audit/retries; `-LegacyMode` for direct HTTP) and
   explains that `whiteboard/send_message.ps1` is a legacy shim.
 - **BUG GG:** duplicate `## 3.` sections in CROSS_TALK.md (no `## 2.`).
@@ -445,11 +451,11 @@ observations. All closed before publication:
   the publish template (skips environment-dependent cases with a clear
   message; 41/41 pass).
 
-### v1.8 (2026-08-19) — heartbeat ESTADO: + enhanced wrapper (low-cost ops)
+### v1.8 (2026-08-19) â€” heartbeat ESTADO: + enhanced wrapper (low-cost ops)
 
 Two parallel tracks converge here: nemotron-3-ultra-free's failed experiment
 as leader, and the leader's ESTADO-88 re-run (3/3 advisors replied via API
-with `prompt_async` + ready-to-copy script in minutes — openrouter/free did
+with `prompt_async` + ready-to-copy script in minutes â€” openrouter/free did
 NOT respond in this round: it stayed paused by its provider's rate limit,
 later it wrote its REVISION-89 vote only in its own chat, never via API).
 
@@ -457,24 +463,24 @@ nemotron reported 8 difficulties and 8 protocol improvement proposals.
 The leader ran a REVISION-89 consultation round with all advisors (4 votes
 received via API with verified signatures: mimo, nemotron, minimax,
 big-pickle; plus openrouter/free's vote in its own chat and gemma's minimal
-vote — 6/6 total). Result: 6/6 APROBAR (4 with changes). Of nemotron's
+vote â€” 6/6 total). Result: 6/6 APROBAR (4 with changes). Of nemotron's
 proposals, two were low-cost (no server changes) and were integrated in
 v1.8 by leader decision; the rest were deferred as server-side
 (Appendix A).
 
-- **§10.3 Heartbeat `ESTADO:` convention:** each advisor publishes
+- **Â§10.3 Heartbeat `ESTADO:` convention:** each advisor publishes
   `ESTADO:sesion:modelo|DISPONIBLE|capacidad=...` in its own history every
   5 min or on state change; the leader builds a dashboard from
   `GET /session/:id/message` filtering `^ESTADO:` (estado_equipo.md,
-  single writer). > 15 min without ESTADO → NO RESPONDE → standard
+  single writer). > 15 min without ESTADO â†’ NO RESPONDE â†’ standard
   diagnosis (6.1) before declaring down. **Replaces the ad-hoc STATUS CHECK
   round** (which nemotron ran as leader with `noReply=true`, which never woke
-  the advisors — their finding #1). The heartbeat mechanism makes
+  the advisors â€” their finding #1). The heartbeat mechanism makes
   availability known BEFORE any task dispatch, eliminating the need for a
   separate status-check round.
-- **§4e.2 `Send-CrossMessage.ps1` enhanced wrapper:** adds retry with
-  exponential backoff (2s, 4s, 8s, capped 30s — no more failed-command
-  streaks, §11.6) and optional delivery verification polling the
+- **Â§4e.2 `Send-CrossMessage.ps1` enhanced wrapper:** adds retry with
+  exponential backoff (2s, 4s, 8s, capped 30s â€” no more failed-command
+  streaks, Â§11.6) and optional delivery verification polling the
   DESTINATION history for a token (`-Token`/`-VerifWait`): HTTP 200/204 is
   only "accepted", not "processed" (nemotron case). Keeps mandatory
   auto-detection (RULE v1.4) and ASCII no-BOM payload write.
@@ -487,57 +493,57 @@ for future work (Appendix A).
 
 Corrections applied in `CROSS_TALK.md`:
 
-- **Version header:** v1.7.1 → v1.8, describing both improvements.
-- **§4d/§4f handshake:** `ACK-PROTOCOLO:1.6.1` → `ACK-PROTOCOLO:1.8`
+- **Version header:** v1.7.1 â†’ v1.8, describing both improvements.
+- **Â§4d/Â§4f handshake:** `ACK-PROTOCOLO:1.6.1` â†’ `ACK-PROTOCOLO:1.8`
   (mimo's REVISION-89 note: the handshake examples still said v1.6.1 while
   the header was already v1.8).
-- **§4e.2 new:** `Send-CrossMessage.ps1` enhanced wrapper (note: `-Token`
-  is mandatory for `-VerifWait` to have effect — nemotron's REVISION-89 note).
-- **§10.3 new:** heartbeat `ESTADO:` convention + dashboard (single writer =
+- **Â§4e.2 new:** `Send-CrossMessage.ps1` enhanced wrapper (note: `-Token`
+  is mandatory for `-VerifWait` to have effect â€” nemotron's REVISION-89 note).
+- **Â§10.3 new:** heartbeat `ESTADO:` convention + dashboard (single writer =
   the leader; `HEARTBEAT_INTERVAL_MIN`=5, `STALE_THRESHOLD_MIN`=15 as
-  named constants; UTC `Z` mandatory — nemotron/minimax/big-pickle notes).
-- **§11 item 3:** v1.8 findings (noReply=true never wakes; curl without
-  `-m` hung the shell and truncated delivery to 1/3). **§11 item 10 new:**
+  named constants; UTC `Z` mandatory â€” nemotron/minimax/big-pickle notes).
+- **Â§11 item 3:** v1.8 findings (noReply=true never wakes; curl without
+  `-m` hung the shell and truncated delivery to 1/3). **Â§11 item 10 new:**
   hardcoded port `10844` pitfall (minimax/big-pickle note).
 - **CHANGELOG:** this entry.
 
-### v1.7.1 (2026-08-19) — pre-built JSON fallback (second E2E test TEST-E2E-86)
+### v1.7.1 (2026-08-19) â€” pre-built JSON fallback (second E2E test TEST-E2E-86)
 
 Re-run of the E2E test applying the v1.7 rule (ready-to-copy script in the
 task message). Result: 4/4 confirmed again, with improvements and a new
 finding:
 
 - **big-pickle, mimo-v2.5-free, nemotron-3-ultra-free:** replied via API in
-  round 1 (nemotron went from 4 rounds in TEST-E2E-85 to 1 round — the v1.7
+  round 1 (nemotron went from 4 rounds in TEST-E2E-85 to 1 round â€” the v1.7
   script rule works).
 - **openrouter/free:** STILL failed with the script. Diagnosis from its
   reasoning: (a) context contaminated by the previous round (verified
   TEST-E2E-85/ACK-PROTOCOLO:1.6.1 while on round 86); (b) it did NOT
-  execute the script — it copied the SOURCE LINE `$text = "..."` as the
+  execute the script â€” it copied the SOURCE LINE `$text = "..."` as the
   payload text, so the signature arrived with literal `` `n `` and
   `$(Get-Date ...)` unexpanded; (c) it rebuilt the text by hand instead of
   copying it exactly (`ACK-PROTOCOLO / 1.7` with spaces).
 
-Fix: **pre-built JSON fallback** — the leader writes the complete payload
+Fix: **pre-built JSON fallback** â€” the leader writes the complete payload
 file itself (ASCII, no BOM, no interpolation, already signed) in a shared
 path and the advisor runs ONLY the credential-detection lines plus a single
 `curl --data-binary "@archivo"` line. Worked in 1 nudge.
 
 Corrections applied in `CROSS_TALK.md`:
 
-- **Version header:** v1.7 → v1.7.1, describing the new fallback.
-- **§4d new RULE (pre-built JSON fallback):** the last fallback before
+- **Version header:** v1.7 â†’ v1.7.1, describing the new fallback.
+- **Â§4d new RULE (pre-built JSON fallback):** the last fallback before
   declaring an advisor incapable of API delivery: leader builds the payload
   file, advisor runs one curl line.
-- **§11 item 3:** v1.7.1 finding added; escalation guideline
-  script → pre-built JSON.
+- **Â§11 item 3:** v1.7.1 finding added; escalation guideline
+  script â†’ pre-built JSON.
 - **CHANGELOG:** this entry.
 
-### v1.7 (2026-08-18) — ready-to-copy script rule (E2E test TEST-E2E-85)
+### v1.7 (2026-08-18) â€” ready-to-copy script rule (E2E test TEST-E2E-85)
 
 End-to-end protocol test with the 4 operative advisors (big-pickle,
-mimo-v2.5-free, openrouter/free, nemotron-3-ultra-free): send → ACK-PROTOCOLO
-→ signed reply via API → leader verifies the token in its history. Result:
+mimo-v2.5-free, openrouter/free, nemotron-3-ultra-free): send â†’ ACK-PROTOCOLO
+â†’ signed reply via API â†’ leader verifies the token in its history. Result:
 4/4 confirmed, but with the following findings:
 
 - **big-pickle and mimo-v2.5-free:** replied via API in round 1 without help.
@@ -550,19 +556,19 @@ mimo-v2.5-free, openrouter/free, nemotron-3-ultra-free): send → ACK-PROTOCOLO
 
 Corrections applied in `CROSS_TALK.md`:
 
-- **§4d new RULE (ready-to-copy script):** the leader's task message MUST
+- **Â§4d new RULE (ready-to-copy script):** the leader's task message MUST
   include the complete send script (auto-detect credentials, ASCII no BOM,
   `prompt_async`) with the advisor's signed reply already embedded, ready to
   copy into the bash tool and execute WITHOUT EDITING, plus the
   verification instruction. Reference script included in the document.
-- **§5 rule 1 (v1.7 note):** if the task message includes the ready-to-copy
+- **Â§5 rule 1 (v1.7 note):** if the task message includes the ready-to-copy
   script, copy it verbatim; do not rebuild the command from memory.
-- **§11 items 3 and 6 (v1.7 E2E finding):** documented the
+- **Â§11 items 3 and 6 (v1.7 E2E finding):** documented the
   nemotron/openrouter cases and the guideline "from v1.7 on, the leader
   always embeds the script in the task message".
-- Version header updated: v1.6.1 → v1.7.
+- Version header updated: v1.6.1 â†’ v1.7.
 
-### Correction 2026-08-18 — delivery claim and mandatory verification (v1.6.1 patch)
+### Correction 2026-08-18 â€” delivery claim and mandatory verification (v1.6.1 patch)
 
 Real incident (task PRESENTACION-84): all 6 advisors answered the task but
 wrote their replies ONLY in their own chat; the leader never received them
@@ -570,18 +576,18 @@ wrote their replies ONLY in their own chat; the leader never received them
 but it was not enforced by the leader in the task message nor verified by the
 advisors. Corrections applied in `CROSS_TALK.md`:
 
-- **§4d (delivery claim):** the leader's task message ALWAYS includes the
+- **Â§4d (delivery claim):** the leader's task message ALWAYS includes the
   explicit claim of the correct reply method: reply via API
   (`prompt_async` WITHOUT `noReply`) to the leader's session, NEVER only in
   the own chat, and VERIFY delivery by reading the leader's history.
   Added to the canonical message template.
-- **§5 rule 5 (mandatory verification):** the advisor, upon finishing, MUST
+- **Â§5 rule 5 (mandatory verification):** the advisor, upon finishing, MUST
   ask itself whether the way it is sending the reply is the correct one
   (API to the origin session, NOT its own chat) and MUST VERIFY that the
   leader received it (read leader's history searching for its token, or
   check the log / `audit_log.md`). If it cannot confirm arrival, it must NOT
   assume it arrived: resend via API or notify the leader in its own chat.
-- Rule added as a `> RULE` note after §4d and as new rule 5 in §5.
+- Rule added as a `> RULE` note after Â§4d and as new rule 5 in Â§5.
 
 ### System review - fix F4-F7 (2026-08-13)
 
@@ -609,8 +615,8 @@ the review with the 4 advisors). See `whiteboard/38_sintesis_revision_sistema.md
   entries for phases 4-5; the date gap in the dump was historical. No action
   required.
 - Tests: new T-metrics (19 assertions: reclassification by state, NACK by
-  reason_code, EXPIRADO→TIMEOUT, EN_VUELO→NO_ACK, broken lines ignored,
-  by-agent/since/until filters, empty dest→'(sin dest)', invalid since/until→
+  reason_code, EXPIRADOâ†’TIMEOUT, EN_VUELOâ†’NO_ACK, broken lines ignored,
+  by-agent/since/until filters, empty destâ†’'(sin dest)', invalid since/untilâ†’
   USAGE_ERROR [covers D1], LOG_NOT_FOUND); T-validate +2 assertions (F7 section:
   historical entries with mixed format outside Active do not generate errors or
   warnings); T-cli +5 assertions (CLI wiring for metrics with --log-path,
@@ -624,10 +630,10 @@ the review with the 4 advisors). See `whiteboard/38_sintesis_revision_sistema.md
 - Tests: T-delivery +8 (Write-CrossDeliveryLog: JSONL format, audit,
   partial Result); T-transport +7 (Get-CrossPortFromLog with log directory
   fixture, Get-CrossPortByScan finds healthy port); T-poll +10 (table
-  Get-PollDiagnostic in direct branches: EXPIRADO/TRANSFERIDO→TERMINAL,
+  Get-PollDiagnostic in direct branches: EXPIRADO/TRANSFERIDOâ†’TERMINAL,
   AckDetected/NackDetected, LeaseVencido, UNKNOWN, PROVIDER_DOWN,
-  CRECE_SIN_ACK, QUIETA_SIN_ACK); T-validate +4 (malformed outbox→warn,
-  non-v1.6.1 state in Active→warn). `Get-PollDiagnostic` is now an exported
+  CRECE_SIN_ACK, QUIETA_SIN_ACK); T-validate +4 (malformed outboxâ†’warn,
+  non-v1.6.1 state in Activeâ†’warn). `Get-PollDiagnostic` is now an exported
   function from the cross-diagnostic module.
 - Regression: **28 suites / 520 assertions / 0 failures** (1 transient failure
   from TCP scan due to real server state; isolated 19/0). CROSS practice closed.
@@ -641,7 +647,7 @@ actionable findings were corrected:
 - **F1 (diagnose):** the classification matrix of `Get-CrossDiagnose`
   (cross-action.psm1) classified `message="stream error"` without 5xx code
   (e.g. `AI_APICallError: Upstream request failed: Endpoint is unavailable`)
-  as `CONFIG_ERROR` → risk of false QUARANTINE/DLQ for agents with
+  as `CONFIG_ERROR` â†’ risk of false QUARANTINE/DLQ for agents with
   transient provider errors. Fix: new matrix with 2 branches:
   `CONFIG_ERROR` (auth/model only: `model not found`, `invalid model`,
   `unauthori[sz]ed`, `invalid api key`, `authentication failed`, `401`/`403`)
@@ -655,7 +661,7 @@ actionable findings were corrected:
   (cross-state.psm1) marks EXPIRADO + audit (`Tipo=SCAN`) and fires at the
   start of `cross send` (excluding the in-progress msg via `-ExcludeMsgId`).
   The `swept_expired`/`swept_count` field is exposed in the send result.
-- Tests: T-diagnose 28 assertions (provider-without-5xx cases, auth/model→
+- Tests: T-diagnose 28 assertions (provider-without-5xx cases, auth/modelâ†’
   CONFIG_ERROR) and new T-sweep (9 assertions: expired only, exclusion of
   in-flight msg, no mutation if none expired).
 - Regression: 24 suites / 408 assertions / 0 failures.
@@ -677,7 +683,7 @@ and the engine marked them NACK_TIMEOUT even though the response arrived.
 - Tests: T-delivery +5 assertions (E1 section).
 - Regression: 24 suites / 413 assertions / 0 failures.
 - F2 validated live: model-d's send swept the 3 historical expired
-  EN_VUELO entries (D89796, F88299, BF5936) → EXPIRADO (`swept_count=3`).
+  EN_VUELO entries (D89796, F88299, BF5936) â†’ EXPIRADO (`swept_count=3`).
 
 ### System review - fix F3 (2026-08-13)
 
@@ -706,8 +712,8 @@ Implemented the 4 items from the Phase 5 plan (external-reviewer recommendation 
   shim.
 - **`cross scan --retry-auto [--apply] [--max-attempts N]`:** diagnosis by
   default (dry-run); `--apply` executes. Classifies each expired EN_VUELO with
-  `Get-CrossDiagnose`: PROVIDER_DOWN→RENEW_LEASE, AGENT_SLEEPING/NO_DATA→
-  RESTART_TASK, CONFIG_ERROR→QUARANTINE (--check-log), NO_ERROR→NOTIFY_LEADER.
+  `Get-CrossDiagnose`: PROVIDER_DOWNâ†’RENEW_LEASE, AGENT_SLEEPING/NO_DATAâ†’
+  RESTART_TASK, CONFIG_ERRORâ†’QUARANTINE (--check-log), NO_ERRORâ†’NOTIFY_LEADER.
   `Restart-CrossTask` validates `MAX_RETRIES_EXCEEDED` (reports in `err` of the
   plan, no blind loop). With `PortArg=0` it updates state/attempt but does not
   send.
@@ -716,7 +722,7 @@ Implemented the 4 items from the Phase 5 plan (external-reviewer recommendation 
   timeout rates, p50/p95 of ack_latency_ms, top NACK reasons, attempts).
 - **BUG DD (critical, concurrency):** the wrapper's OUTBOX line insertion
   was a non-atomic read-modify-write. With 2+ concurrent processes, the last
-  write won → lines were lost → `OUTBOX_MSG_NOT_FOUND` in `cross send`.
+  write won â†’ lines were lost â†’ `OUTBOX_MSG_NOT_FOUND` in `cross send`.
   Fix: **named mutex based on outbox path hash** (`Get-OutboxMutex`)
   that serializes insertion (`Add-OutboxEntry`, exported, with backoff
   100..1200 ms and post-write verification) and in-place updates
@@ -724,21 +730,21 @@ Implemented the 4 items from the Phase 5 plan (external-reviewer recommendation 
   the mutex) used by `Set-OutboxEstado`/`Renew-CrossLease`/`Set-OutboxAttempt` and
   by `cross send` (previously read without lock and could see the file truncated
   mid-write). Result: **80/80 unique msg_id** in the race test.
-- **T-race.ps1:** 4 jobs × 20 wrapper calls = 80 concurrent sends,
+- **T-race.ps1:** 4 jobs Ã— 20 wrapper calls = 80 concurrent sends,
   isolated via `$env:CROSS_WHITEBOARD_DIR` (Import-CrossConfig respects it).
   Verifies 0 OUTBOX_LOCKED, 80 unique OUTBOX lines, no corruption, with ESTADO,
-  80 valid JSONs and unique msg_id in delivery_log, audit ≥80. **9/9 PASS.**
+  80 valid JSONs and unique msg_id in delivery_log, audit â‰¥80. **9/9 PASS.**
 - **Verified:** full suite **23 suites, 386 assertions, 0 failures**
   (new: T-race 9; T-cli unchanged 36; total regression of the 22 prior
   including real E2E 8/8). `cross metrics` validated by CLI against the
   real delivery_log (total=51, rates and latencies coherent; --by-agent/
   --since/--until filters OK).
-- **External-reviewer review of the Phase 5 ZIP (2026-08-13) — verdict:** "Phase 5
+- **External-reviewer review of the Phase 5 ZIP (2026-08-13) â€” verdict:** "Phase 5
   delivered and validated". BUG DD confirmed (root cause + fix correct). 3 quality
   observations (O1/O2 non-urgent, documented) and 2 minor details + 1
   observation, closed in v2:
   - **D1 (minor, metrics):** `--since`/`--until` with invalid format were
-    silently ignored (`Parse` in empty try/catch → filter not applied).
+    silently ignored (`Parse` in empty try/catch â†’ filter not applied).
     Now returns `USAGE_ERROR` code 64 with detail (use ISO8601).
   - **D2 (minor, metrics):** `top_nack` returned ALL reasons sorted;
     now limited to the top 10.
@@ -751,7 +757,7 @@ Implemented the 4 items from the Phase 5 plan (external-reviewer recommendation 
     contention by path is acceptable for 3-5 agents.
 - **Verified (external-reviewer review):** 23 suites, **386 assertions, 0 failures**
   (T-cli 36 no regression after D1/D2/O3); `cross metrics` revalidated by CLI
-  (`source=delivery_log.jsonl`, `--since "yesterday"` → USAGE_ERROR 64).
+  (`source=delivery_log.jsonl`, `--since "yesterday"` â†’ USAGE_ERROR 64).
 
 
 
@@ -759,7 +765,7 @@ Implemented the 9 action subcommands in `cross/modules/cross-action.psm1`,
 integrated into the CLI (`cross.ps1`, `ack`/`nack`/`resume`/`restart-task`/`nudge`/
 `escalate`/`dlq`/`quarantine`/`diagnose`). They complement the READ layer from
 Phase 4a (poll/status/reconcile/aviso-spof) with operations that mutate outbox,
-escalated, DLQ and audit. See CROSS_TALK.md §7.5 and §12.6/12.7/12.10.
+escalated, DLQ and audit. See CROSS_TALK.md Â§7.5 and Â§12.6/12.7/12.10.
 
 - **`cross ack --token T --for-msg-id X [--to] [--model]`:** emits
   `ACK:<token>:<id>[:model]` (3-4 segments, 7.1) to the destination and logs it
@@ -770,19 +776,19 @@ escalated, DLQ and audit. See CROSS_TALK.md §7.5 and §12.6/12.7/12.10.
   travels on the wire when `--for-run-id` is passed (msg_id+run_id together), so
   the parser can distinguish the enriched from the generic version.
 - **`cross resume --to ses_X --task-id TX [--from] [--text]`:** executable
-  continuation instruction (§12.10). Does NOT create a new msg_id, does NOT touch
-  the outbox and does NOT increment attempt (§12.1).
+  continuation instruction (Â§12.10). Does NOT create a new msg_id, does NOT touch
+  the outbox and does NOT increment attempt (Â§12.1).
 - **`cross restart-task --msg-id X [--to] [--text]`:** RETRY with the SAME msg_id,
   attempt+1 persisted in the outbox; `OUTBOX_MSG_NOT_FOUND` /
   `MAX_RETRIES_EXCEEDED` (max `max_retries` from config).
 - **`cross nudge --to ses_X --task "..." [--token]`:** firm prompt that ignores
-  `Continue`/previous guidance (antidote §11 auto-continuation pitfall).
+  `Continue`/previous guidance (antidote Â§11 auto-continuation pitfall).
 - **`cross escalate --msg-id X --to ses_Y --reason "..." [--run-id] [--apply]`:**
-  canonical `URGENTE` line in `escalated.md` (§12.6); without `--apply` does NOT
+  canonical `URGENTE` line in `escalated.md` (Â§12.6); without `--apply` does NOT
   notify (dry-run); with `--apply` sends wake-on-write to the destination.
 - **`cross dlq --msg-id X [--flag F] [--summary]`:** DLQ line in
   `dlq-messages.md` with closed flags `HUMAN_REVIEW|NACK_ORIGINATED|QUARANTINE|
-  PROVIDER_DOWN` (§12.7) and marks outbox `ESTADO=DLQ`.
+  PROVIDER_DOWN` (Â§12.7) and marks outbox `ESTADO=DLQ`.
 - **`cross quarantine --msg-id X --reason "..." [--check-log]`:** DLQ with
   `flag=HUMAN_REVIEW` + outbox `QUARANTINE`; `--check-log` diagnoses via
   `opencode.log` and appends `log=<classification>` to the summary.
@@ -805,11 +811,11 @@ escalated, DLQ and audit. See CROSS_TALK.md §7.5 and §12.6/12.7/12.10.
     `[string]`, empty included).
   - **BUG V (medium, diagnose):** the timestamp regex discarded the `Z`
     (`timestamp=(\d{4}-...:\d{2}:\d{2})`); `[datetime]::Parse(...).ToUniversalTime()`
-    treated the value as local and on UTC+2 machines shifted -2h → lines
-    outside the window → false `NO_DATA`. The regex now captures `(?:\.\d+)?Z` and
+    treated the value as local and on UTC+2 machines shifted -2h â†’ lines
+    outside the window â†’ false `NO_DATA`. The regex now captures `(?:\.\d+)?Z` and
     the parse uses `RoundtripKind`.
   - **BUG W (medium, classification):** the `PROVIDER_DOWN` regex was
-    `\[504\]|\[524\]` and didn't match `stream error 524` (without brackets) →
+    `\[504\]|\[524\]` and didn't match `stream error 524` (without brackets) â†’
     false `CONFIG_ERROR`. Added `stream error (504|524)`.
   - **BUG X (minor, segments):** `segments` reported `$segs.Count` (4) but the
     tests counted the wire text segments (`ACK:T1:sub:ses:model-b` = 5).
@@ -817,11 +823,11 @@ escalated, DLQ and audit. See CROSS_TALK.md §7.5 and §12.6/12.7/12.10.
   - **Test fixes:** T-nack aligned to the v1.7 spec (msg_id without run_id does
     NOT enrich the frame; enriched = 7 segments); T-quarantine `--check-log`
     uses timestamps relative to `$now` (fixed 2026-08-12 ones fell outside
-    the window → NO_DATA).
+    the window â†’ NO_DATA).
 - **Verified:** 22 suites, **354 assertions, 0 failures** (new: ack 14, nack
   21, resume 13, restart-task 14, nudge 10, escalate 15, dlq 15, quarantine 13,
   diagnose 15; T-cli 36; real E2E 8/8 against the OpenCode Desktop server).
-- **External-reviewer review of ZIP 4b (2026-08-13) — verdict:** "Phase 4b functionally
+- **External-reviewer review of ZIP 4b (2026-08-13) â€” verdict:** "Phase 4b functionally
   complete; 1 critical bug (BUG Y) must be closed before Phase 5". Closed 5 bugs:
   - **BUG Y (critical, wire NACK):** `Send-CrossNack` with `--for-run-id` but WITHOUT
     `--model` emitted 6 segments (`NACK:token:id:reason:msg_id:run_id`), which the
@@ -829,11 +835,11 @@ escalated, DLQ and audit. See CROSS_TALK.md §7.5 and §12.6/12.7/12.10.
     (total misparse). Fix (Option B recommended by external-reviewer): `Get-CrossMyModel`
     auto-derives the model from `config.my_model` when `--model` is not passed,
     in both `Send-CrossNack` and `Send-CrossAck`; if the enriched format
-    still has no model → `USAGE_ERROR`. Now basic ACK/NACK always carry a model
-    (4/5 segments, §7.1/7.5 canonical) and the enriched version never emits 6 segments.
-    New test in T-nack: enriched without `--model` → 7 parseable segments.
+    still has no model â†’ `USAGE_ERROR`. Now basic ACK/NACK always carry a model
+    (4/5 segments, Â§7.1/7.5 canonical) and the enriched version never emits 6 segments.
+    New test in T-nack: enriched without `--model` â†’ 7 parseable segments.
   - **BUG Z (medium, DLQ):** `Write-CrossDlq` used `entry.attempt` as
-    `reintentos`; attempt counts deliveries (attempt=1 → 0 retries). Now
+    `reintentos`; attempt counts deliveries (attempt=1 â†’ 0 retries). Now
     `reintentos = max(0, attempt - 1)` (also in the `quarantine` call).
   - **BUG AA (medium, audit):** `Write-CrossDeliveryLog` wrote audit with
     direct `AppendAllText`, bypassing the retry of `Write-AuditEntry` (audit is
@@ -841,9 +847,9 @@ escalated, DLQ and audit. See CROSS_TALK.md §7.5 and §12.6/12.7/12.10.
     parts, no duplicated `msg=`).
   - **BUG BB (minor, escalated):** `Write-CrossEscalated` emitted `msg_id`
     bare (`| msg_x |`); `Read-EscalatedLog` only recognized it if it started with
-    `msg_`. Now emits explicit `msg_id=$MsgId` → any msg_id format
+    `msg_`. Now emits explicit `msg_id=$MsgId` â†’ any msg_id format
     parses. New test in T-escalate.
-  - **BUG CC (minor, restart-task):** spec v0.2 §7.10 requires
+  - **BUG CC (minor, restart-task):** spec v0.2 Â§7.10 requires
     `cross restart-task --max-attempts N`; the CLI dispatch didn't pass it.
     Added `[int]$MaxAttempts` to `Restart-CrossTask` (default config.max_retries)
     and the flag in `cross.ps1`. New test in T-restart-task.
@@ -871,12 +877,12 @@ design observations:
   goes to the leader's session (falls back to `$MySessionId` if not defined).
 - **BUG O (minor):** the inter-iteration sleep of `poll` respects `$SleepFn`
   (previously hardcoded `Start-Sleep`, untestable with real IntervalMs).
-- **BUG R (minor):** `dlq_by_flag` groups unclosed flags (§12.7) under
+- **BUG R (minor):** `dlq_by_flag` groups unclosed flags (Â§12.7) under
   `UNKNOWN` (previously counted any string).
 - **O2 (observation):** `claimed_orphaned` adds `claimer_status` (session status
   or `unreachable`), distinguishing "claimer is quiet (real problem)" from
   "couldn't verify (network)".
-- **reconcile improvement:** existing but empty check-file → `AMBIGUOUS` with
+- **reconcile improvement:** existing but empty check-file â†’ `AMBIGUOUS` with
   `retry` recommendation (previously `investigate`, indistinguishable from "there
   is content without a token").
 - **ACKED_QUIETA message:** clarified to "agent is busy without growth,
@@ -889,7 +895,7 @@ design observations:
 Implemented `poll`, `status`, `reconcile` and `aviso-spof` in the new module
 `cross/modules/cross-diagnostic.psm1`, integrated into the CLI (`cross.ps1`).
 All are READ-ONLY (they don't mutate outbox except `poll` marking detected NACKED
-in audit, and `aviso-spof --apply` appending AVISO-SPOF). See CROSS_TALK.md §12.14.
+in audit, and `aviso-spof --apply` appending AVISO-SPOF). See CROSS_TALK.md Â§12.14.
 
 - **`cross poll --msg X [--timeout S] [--interval MS]`:** per-message
   diagnosis with the primary signal `session.status` + growth (12.4/12.9):
@@ -903,10 +909,10 @@ in audit, and `aviso-spof --apply` appending AVISO-SPOF). See CROSS_TALK.md §12
   automatic RECONCILE from 12.10: `CONFIRMED` (token in check-file) /
   `AMBIGUOUS` / `NOT_FOUND`, with the line where the token appears.
 - **`cross aviso-spof [--apply] [--for ses_X]`:** passive SPOF detection
-  (12.13): own expired EN_VUELO + quiet session → `AVISO-SPOF` in escalated
-  (only with `--apply`); other's → notice to the leader. Dry-run by default.
+  (12.13): own expired EN_VUELO + quiet session â†’ `AVISO-SPOF` in escalated
+  (only with `--apply`); other's â†’ notice to the leader. Dry-run by default.
 - **Fix during development:** `Get-CrossStatus` filtered idempotency by
-  `run_id`, a property that doesn't exist in `idempotencia-procesados.md` → filter
+  `run_id`, a property that doesn't exist in `idempotencia-procesados.md` â†’ filter
   removed (the log doesn't carry run_id; the outbox does).
 - **Verified:** 13 suites, **223 assertions, 0 failures** (new: poll 16,
   status 17, reconcile 12, aviso-spof 15; T-cli rises to 36 with 4a wiring).
@@ -918,17 +924,17 @@ validation points): verdict "engine functionally complete and validated", 7 bugs
 All closed + 2 design observations:
 
 - **BUG A (critical, parser):** `Parse-CrossAckText` now recognizes the enriched
-  6-segment NACK (v0.2 §3.4 Finding #4 model-d)
+  6-segment NACK (v0.2 Â§3.4 Finding #4 model-d)
   `NACK:<token>:<id>:<model>:<reason>:<msg_id>:<run_id>` and propagates
   `nack_msg_id`/`nack_run_id` in the engine result. 4-5 segments remain
-  valid (superset). Specified in CROSS_TALK.md §7.5.
+  valid (superset). Specified in CROSS_TALK.md Â§7.5.
 - **BUG B (critical, outbox):** msg_id lookup in `Update-OutboxLine` with
   delimiters `OUTBOX | <msg_id> |` (previously substring: `msg_123` touched the
   line for `msg_1234`). Applies to Set-OutboxEstado/Renew-CrossLease (they delegate).
 - **BUG C (medium):** "destination is growing" check used `WaitMs=15000` by
   default (previously 2000, false negatives), configurable via `session_growing_check_ms`.
 - **BUG D (medium):** `$renewed` was reset between attempts (each attempt can
-  renew the lease 1× if the destination keeps growing).
+  renew the lease 1Ã— if the destination keeps growing).
 - **BUG L (medium):** `attempt` persisted on the outbox line
   (`Set-OutboxAttempt`, `attempt=N`) before each send; `cross send` resumes
   after a crash from the actual attempt. `Set-OutboxAttempt` exported.
@@ -939,7 +945,7 @@ All closed + 2 design observations:
 - **External-reviewer improvement (reason_codes):** added `NACK_SERVER_ERROR` (5xx exhausted),
   `NACK_HTTP_4XX`, `NACK_NETWORK` to the `Reason-Code` classification.
 - **Cleanup:** removed redundant `Set-OutboxEstado EN_VUELO` in the
-  `--no-wait` path; documented `--ack-timeout 0` (no ACK → CONFIRMADO) in the help.
+  `--no-wait` path; documented `--ack-timeout 0` (no ACK â†’ CONFIRMADO) in the help.
 - **Verified:** 9 suites, **156 assertions, 0 failures** (delivery rose from 43
   to 53 with the BUG A/B/L tests).
 
@@ -954,22 +960,22 @@ whiteboard/29f_sintesis_delivery.md, decisions D1-D4).
   (fire-and-forget, outbox stays EN_VUELO), `--ack-timeout`, `--max-attempts`.
 - **ACK/NACK:** `Parse-CrossAckText` validates `ACK:<token>:<id>:<model>` (7.1)
   and `NACK:<token>:<id>:<model>:<reason>` (7.5); also handshake
-  `ACK-PROTOCOLO`/`NACK-PROTOCOLO`. NACK → outbox `NACKED` with reason.
+  `ACK-PROTOCOLO`/`NACK-PROTOCOLO`. NACK â†’ outbox `NACKED` with reason.
 - **Retries (table 12.9):** retry only HTTP 0/408/429/5xx, max 2 attempts,
-  linear 2s backoff. 404 → `DEST_NOT_FOUND` no retry; 401/403 →
-  `AUTH_FAILED` (config). No ACK after max attempts → `EXPIRADO` with
+  linear 2s backoff. 404 â†’ `DEST_NOT_FOUND` no retry; 401/403 â†’
+  `AUTH_FAILED` (config). No ACK after max attempts â†’ `EXPIRADO` with
   `ACK_TIMEOUT` and `reason_code` NACK_TIMEOUT.
-- **Lease:** renewed 1× if the destination "grows" during the wait (heuristic
+- **Lease:** renewed 1Ã— if the destination "grows" during the wait (heuristic
   12.4a). `cross scan` lists expired EN_VUELO; `--apply` renews lease,
   `--quarantine` marks QUARANTINE.
 - **Traceability:** `whiteboard/delivery_log.jsonl` (structured log by
   msg_id) + `audit_log.md` + `ack_latency_ms` as a basic metric.
 - **Real E2E (D4):** `tests/T-e2e.ps1` against the OpenCode Desktop server
-  (auto-detected credentials): happy ACK → CONFIRMADO, NACK → NACKED,
-  404 → DEST_NOT_FOUND, and observability. 8/8 PASS.
+  (auto-detected credentials): happy ACK â†’ CONFIRMADO, NACK â†’ NACKED,
+  404 â†’ DEST_NOT_FOUND, and observability. 8/8 PASS.
 - **Verified:** 9 suites, 146 assertions, 0 failures.
 - **Pitfall corrected:** `"$var:`"` inside a double-quoted string is parsed
-  as a PowerShell unit reference → use `${var}` (recurring BUG
+  as a PowerShell unit reference â†’ use `${var}` (recurring BUG
   1/external-reviewer, now also fixed in tests).
 
 ### cross.ps1 Phase 1 - external-reviewer review (2026-08-12)
@@ -985,16 +991,16 @@ Verified: 45/45 tests (T-cli 29/29, T-transport 16/16).
   environment. Verified: range containing the real port finds it; empty range
   returns nothing.
 - **BUG 2 (blocker):** `config --set` infers type from the existing value
-  (int/long → `[long]::TryParse`, bool → true/false/1/0/yes/no, array → error
+  (int/long â†’ `[long]::TryParse`, bool â†’ true/false/1/0/yes/no, array â†’ error
   64). `port_cache_ttl_s=45` is saved as a number, not a string.
-- **BUG 3 (blocker):** `config --set` validates against the v0.1 §4.1 spec:
+- **BUG 3 (blocker):** `config --set` validates against the v0.1 Â§4.1 spec:
   `my_session_id` must start with `ses_`; `default_ack_timeout_s` integer
   30-600; `default_lease_minutes` 1-30; `max_retries` 0-5; `max_saltos` 0-5;
-  `protocol_version` must be `1.6.1` (warn, no block). Violations → code 64.
+  `protocol_version` must be `1.6.1` (warn, no block). Violations â†’ code 64.
 - **BUG 4:** `duration_ms` now measures the real command (Stopwatch in each
   subcommand, `Out-Result -Watch`); removed the logic that calculated it from `ts`.
-- **BUG 5:** HTTP errors classified: 5xx → `HTTP_5XX`, 401 → `AUTH_FAILED`,
-  404 → `NOT_FOUND`, rest → `HTTP_4XX`. `read` with non-existent session returns
+- **BUG 5:** HTTP errors classified: 5xx â†’ `HTTP_5XX`, 401 â†’ `AUTH_FAILED`,
+  404 â†’ `NOT_FOUND`, rest â†’ `HTTP_4XX`. `read` with non-existent session returns
   `NOT_FOUND` with code 64 (usage), not 3 (transport).
 - **BUG 6:** tests without hardcoded paths or session_ids; they read
   `cross.config.json` and derive the CROSS root (portable across environments).
@@ -1019,8 +1025,8 @@ library (`lib/cross-format.psm1`) + tests (`tests/`). Verified: 39/39 tests.
 - **Utility subcommands:** `health`, `whoami`, `sessions [--directory]`,
   `read --session ... [--limit] [--since] [--role]`, `config [--get|--set]`,
   `--help`.
-- **Auto-detection D3:** order env → .env → cache TTL 60s (password hash)
-  → regex in main.log → TCP scan → error. `--no-cache`, `--health-skip`,
+- **Auto-detection D3:** order env â†’ .env â†’ cache TTL 60s (password hash)
+  â†’ regex in main.log â†’ TCP scan â†’ error. `--no-cache`, `--health-skip`,
   `--port`, `--password` as overrides.
 - **Output D5:** JSON by default (single line), `--human` and `--quiet`
   alternatives. ASCII-safe in all outputs.
@@ -1073,7 +1079,7 @@ and ignores fixed values (4e), and the case is documented in known issues
 ### v1.5 (2026-08-10)
 
 Lessons from the Bugs TXBridge task + contributions from the 3 advisors. Pitfalls
-documented: BOM in JSON → HTTP 500 (section 4, with ASCII preference — contribution
+documented: BOM in JSON â†’ HTTP 500 (section 4, with ASCII preference â€” contribution
 model-c), derailment by auto-continuation "Continue if you have next
 steps..." (6.1c), sender identity in the leader's message (4d, 5, pitfall
 model-d) and **main channel = API** (responding only in the chat is a delivery
@@ -1082,12 +1088,12 @@ failure; 5, user request). `prompt_async` remains the STANDARD method
 model-c) and new section 8.1 "Large project analysis" (contribution model-c). New
 section 8.2 "Tool location" (python/Windows Store pitfall,
 user request). The 3-round flow
-analysis→verification→consensus was validated (item 27). Changes are additive only, no
+analysisâ†’verificationâ†’consensus was validated (item 27). Changes are additive only, no
 rule changes.
 
 #### v1.5 Extension (2026-08-11, riddle competition)
 
-Empirically proven pitfall — `noReply: true` stores the message but does NOT
+Empirically proven pitfall â€” `noReply: true` stores the message but does NOT
 wake the destination agent (section 5.1). Rule reinforced: always respond
 with `prompt_async` without `noReply`.
 
@@ -1108,13 +1114,13 @@ appendix A remain in effect; changes are additive.
 
 #### Subsequent v1.6 adjustments (2026-08-11, test campaign)
 
-- **§12.3 fixed at 120s WITHOUT backoff** with decision based on two signals (session
-  is growing → renew lease; quiet → circuit breaker). §7.3 (30s/backoff
-  30/60/120) is subordinate to §12.3 for messages with `requiere_ack=true`
+- **Â§12.3 fixed at 120s WITHOUT backoff** with decision based on two signals (session
+  is growing â†’ renew lease; quiet â†’ circuit breaker). Â§7.3 (30s/backoff
+  30/60/120) is subordinate to Â§12.3 for messages with `requiere_ack=true`
   (precedence documented in 7.3).
-- **§12.8 and §12.12:** terminology corrected from "exactly-once" to **at-least-once
+- **Â§12.8 and Â§12.12:** terminology corrected from "exactly-once" to **at-least-once
   with deduplication by `msg_id`** (effectively-once), after external review.
-- **§12.13 (new):** accepted trade-offs — leader SPOF documented as an
+- **Â§12.13 (new):** accepted trade-offs â€” leader SPOF documented as an
   explicit limitation (no leader election in v1.6; mitigated by human-readable
   files and human supervision). Leader election added to Appendix A.
 
@@ -1123,7 +1129,7 @@ appendix A remain in effect; changes are additive.
 - **Document split:** the version history and "Summary of findings" (32
   findings) were moved from `CROSS_TALK.md` to this file
   (`CHANGELOG.md`). `CROSS_TALK.md` now contains only current rules
-  (1180 → 1054 lines).
+  (1180 â†’ 1054 lines).
 - **Appendix B (new):** consolidated PowerShell 5.1/Windows pitfalls
   (JSON/BOM, mojibake, paths, `&&`, `${var}`, concurrent Add-Content,
   python/Windows Store), isolated from the protocol rules. Section 11
@@ -1133,7 +1139,7 @@ appendix A remain in effect; changes are additive.
   v1.6 canonical grammar (old stress lines moved to the "Historical"
   section); entry T9 was marked CONFIRMADO (it was EN_VUELO
   with a spurious duplicate with leading space). `whiteboard/escalated.md` without
-  BOM. Normalized CRLF → LF in operational files.
+  BOM. Normalized CRLF â†’ LF in operational files.
 - **Diary moved out of whiteboard:** `whiteboard/15_charla_conciencia.md` (93 KB)
   moved to `diario/15_charla_conciencia.md`; references in CROSS_TALK.md
   (12.10), 16_diario_conversaciones.md and 26_informe_maestro.md updated.
@@ -1145,28 +1151,28 @@ v1.6. These are NOT new protocol changes, but clarifications and cleanup; the
 real v1.7 will come when the backlog is implemented and tested. Applied in
 CROSS_TALK.md:
 
-- **RESUME ≠ RETRY (main correction from external review):** `sigue` is
+- **RESUME â‰  RETRY (main correction from external review):** `sigue` is
   RESUME (same session + context + implicit task_id), it does NOT retransmit the
   logical message and carries no `msg_id`. RETRY is retransmission of the SAME `msg_id`
-  (idempotent). Corrected in §6.1c and §12.5(b), which mixed both.
-- **Formal identities (new §12.1):** `task_id`, `run_id`, `msg_id`,
+  (idempotent). Corrected in Â§6.1c and Â§12.5(b), which mixed both.
+- **Formal identities (new Â§12.1):** `task_id`, `run_id`, `msg_id`,
   `attempt`, `session_id` defined as independent identities.
-- **§12.3 terminology:** "ACK timeout" → "ACK decision window of 120s" (if the
+- **Â§12.3 terminology:** "ACK timeout" â†’ "ACK decision window of 120s" (if the
   session is growing another window is expected; it's not a failure at 120s).
-- **§6.1d simplified:** partition rule — messages with ACK → §12.3
-  governs; messages without ACK → §6.1d governs. No dual interpretation.
-- **§12.6:** the claim of "innovation without equivalent" is softened to
+- **Â§6.1d simplified:** partition rule â€” messages with ACK â†’ Â§12.3
+  governs; messages without ACK â†’ Â§6.1d governs. No dual interpretation.
+- **Â§12.6:** the claim of "innovation without equivalent" is softened to
   "shared-state coordination pattern developed for CROSS" (without claiming
   absence of equivalents in A2A/MCP).
-- **§12.13 AVISO-SPOF:** passive detection by advisors at end of turn
-  (light scan of outbox for expired EN_VUELO belonging to their ID → notice in
+- **Â§12.13 AVISO-SPOF:** passive detection by advisors at end of turn
+  (light scan of outbox for expired EN_VUELO belonging to their ID â†’ notice in
   `escalated.md`), no leader re-election or task takeover (consensus of the 4).
 - **Document cleanup:** Appendix B (PowerShell/Windows pitfalls) moved to
   **`CROSS_WINDOWS.md`**; the "Discovery History" and "Appendix B" sections removed
   from CROSS_TALK.md (section 11 references updated to
   `CROSS_WINDOWS.md`); CROSS_TALK.md now contains ONLY current rules (~1147
   lines).
-- **Appendix A:** prioritized backlog for the real v1.7 — SQLite (HIGH/low) and
+- **Appendix A:** prioritized backlog for the real v1.7 â€” SQLite (HIGH/low) and
   `session.status` (HIGH/low) first; SSE conditional on the backend (test
   `GET /event` experimentally first); SDK low; `session.abort` opt-in/soft.
   Pending decision: SQLite is an architectural improvement, not an urgent fix
@@ -1174,13 +1180,13 @@ CROSS_TALK.md:
 
 #### Final v1.6.1 adjustment (2026-08-11, second external-reviewer review)
 
-- **Bounded effectively-once (§12.8 and §12.13):** deduplication by `msg_id`
+- **Bounded effectively-once (Â§12.8 and Â§12.13):** deduplication by `msg_id`
   achieves effectively-once ONLY for idempotent operations; for non-idempotent
   ones, RECONCILE or effect confirmation is required. The excess
   "effectively-once by construction" was removed.
-- **`attempt` semantics (§12.1):** RETRY → +1, TRANSFER → +1, RESUME →
+- **`attempt` semantics (Â§12.1):** RETRY â†’ +1, TRANSFER â†’ +1, RESUME â†’
   no increment (it's not a new delivery).
-- **Executable RESUME (§12.10):** specification of how it works: `prompt_async`
+- **Executable RESUME (Â§12.10):** specification of how it works: `prompt_async`
   on the same `session_id` with a continuation instruction based on the
   checkpoint; no reuse of `msg_id`.
 - **Complete document cleanup:** removed traces of history/
@@ -1191,25 +1197,25 @@ CROSS_TALK.md:
 external-reviewer (third external review) fixed the EXACT formats that the future CLI
 `cross.ps1` will have to parse, eliminating tolerated variations:
 
-- **CLAIMED (§12.8):** new state in the idempotency state machine
-  (`CLAIMED` → `PROCESADO`) that covers the 30-90 s window of LLM
+- **CLAIMED (Â§12.8):** new state in the idempotency state machine
+  (`CLAIMED` â†’ `PROCESADO`) that covers the 30-90 s window of LLM
   processing and prevents the double-processing race. EXACT format:
   `msg_id | timestamp_claim | modelo_claimer | CLAIMED_BY=ses_X` (no extra
   spaces, no variations). Retry only if there's no line or if the claimer is
   quiet (double-read 12.4). Applied to `CROSS_TALK.md` and
   `whiteboard/idempotencia-procesados.md`.
-- **Protocol handshake (§4d):** the task message carries
+- **Protocol handshake (Â§4d):** the task message carries
   `PROTOCOLO: CROSS-TALK v1.6.1`; the advisor responds `ACK-PROTOCOLO:1.6.1`
-  (EXACT three segments, no `v`, no prefix) within 30 s. Different version →
-  leader sends inline critical rules summary; agent without protocol →
+  (EXACT three segments, no `v`, no prefix) within 30 s. Different version â†’
+  leader sends inline critical rules summary; agent without protocol â†’
   summary + retry; response `NACK-PROTOCOLO:version_no_soportada:<version>`
-  → leader decides whether to continue or exclude. Repeated at the start of
+  â†’ leader decides whether to continue or exclude. Repeated at the start of
   each task.
-- **Explicit NACK (new §7.5):** the advisor that cannot process declares
+- **Explicit NACK (new Â§7.5):** the advisor that cannot process declares
   `NACK:<token>:<ID>:<MODEL>:<REASON>` instead of processing blindly or staying
   silent. Closed reasons: `CAPACITY | TOOL_MISSING | AMBIGUOUS_TASK |
   PROVIDER_DOWN | OTHER` (no free text). Reassign, abort or escalate;
-  do not penalize the NACK sender. (The old §7.5 "Relationship" became §7.6.)
+  do not penalize the NACK sender. (The old Â§7.5 "Relationship" became Â§7.6.)
 
 #### external-reviewer format corrections F1-F4 + O1-O2 (2026-08-11)
 
@@ -1219,25 +1225,25 @@ test campaign:
 
 - **F1:** `outbox.md` declares the new `NACKED` state in the canonical
   list (`EN_VUELO / CONFIRMADO / EXPIRADO / TRANSFERIDO / NACKED`).
-- **F2:** `dlq-messages.md` and §12.7 add the `flag` field to the DLQ
+- **F2:** `dlq-messages.md` and Â§12.7 add the `flag` field to the DLQ
   format (`... | ESTADO=NOT PENDING PICKUP | flag=HUMAN_REVIEW | "summary"`),
   with closed values `HUMAN_REVIEW | NACK_ORIGINATED | QUARANTINE |
-  PROVIDER_DOWN`. §7.5 no longer mentions "flag" as an idea: it is now specified.
-- **F3:** §7.5 adds the leader's recommended action table for each NACK
+  PROVIDER_DOWN`. Â§7.5 no longer mentions "flag" as an idea: it is now specified.
+- **F3:** Â§7.5 adds the leader's recommended action table for each NACK
   reason (`CAPACITY` reassign without +1 attempt; `TOOL_MISSING` provide
   path/tool or reassign; `AMBIGUOUS_TASK` rephrase + new msg_id;
   `PROVIDER_DOWN` wait/exclude; `OTHER` DLQ with `flag=HUMAN_REVIEW`).
-- **F4:** §9.1 expands valid TIPO values in audit_log with `ACK-PROTOCOLO`, `NACK`,
+- **F4:** Â§9.1 expands valid TIPO values in audit_log with `ACK-PROTOCOLO`, `NACK`,
   `NACK-PROTOCOLO`, `CLAIM`, `DONE`, `RELEASE`.
 - **O1:** `idempotencia-procesados.md` becomes an **append-only log** (like the
-  outbox): the `CLAIMED → PROCESADO` transition and the `release` are appended as
+  outbox): the `CLAIMED â†’ PROCESADO` transition and the `release` are appended as
   NEW lines (`PROCESADO` / `SUPERSEDED_BY=ses_Y`), never rewritten.
   The CLI parser reads the LAST line of each `msg_id` as the current state.
-  Eliminates the in-place editing race in PowerShell (Get-Content →
+  Eliminates the in-place editing race in PowerShell (Get-Content â†’
   Set-Content is not atomic) without SQLite.
-- **O2:** new §4f "Minimal critical rules (handshake fallback)": a canonical
+- **O2:** new Â§4f "Minimal critical rules (handshake fallback)": a canonical
   8-line copyable block that the leader sends when the advisor doesn't
-  respond `ACK-PROTOCOLO`; §4d references §4f instead of an improvised
+  respond `ACK-PROTOCOLO`; Â§4d references Â§4f instead of an improvised
   "summary".
 
 #### Cleanup D1-D2 + seeded examples (2026-08-11, external-reviewer #2 verification)
@@ -1245,17 +1251,17 @@ test campaign:
 External-reviewer verification of the F1-F4 ZIP: the 6 corrections properly integrated.
 2 cleanup details closed and examples seeded for the CLI parser:
 
-- **D1:** §12.8 consolidated into a SINGLE rule block (CLAIM/PROCESADO/
+- **D1:** Â§12.8 consolidated into a SINGLE rule block (CLAIM/PROCESADO/
   Release/Retry/parser). The second block with different wording that could
   confuse which was the norm was removed; the retry rule with double-read
   (12.4) was merged into the single block.
-- **D2:** §12.12 aligned — `outbox.md` lists `NACKED` in the states; the
+- **D2:** Â§12.12 aligned â€” `outbox.md` lists `NACKED` in the states; the
   `idempotencia-procesados.md` line becomes "append-only log of the lifecycle
-  of each msg_id (CLAIMED → PROCESADO / SUPERSEDED_BY); dedupe by last
+  of each msg_id (CLAIMED â†’ PROCESADO / SUPERSEDED_BY); dedupe by last
   line"; `dlq-messages.md` mentions the `flag`.
 - **Seeded examples:** `idempotencia-procesados.md` adds an
-  "State examples (v1.6.1 format — DO NOT delete)" section with `CLAIMED_BY` and a
-  `CLAIMED_BY` → `SUPERSEDED_BY` pair so that future CLI tests can
+  "State examples (v1.6.1 format â€” DO NOT delete)" section with `CLAIMED_BY` and a
+  `CLAIMED_BY` â†’ `SUPERSEDED_BY` pair so that future CLI tests can
   validate the "last line wins" logic on real data (not just
   `PROCESADO`).
 
@@ -1318,7 +1324,7 @@ History of findings by version (moved from CROSS_TALK.md on 2026-08-11).
 16. **ACK (v1.1):** the token `ACK:<token>:<SENDER_SESSION_ID>:<SENDER_MODEL>`
     confirms processing (section 7). Originally 30 s timeout with
     backoff (30/60/120 s) and `sigue` fallback. **SUPERSEDED for
-    `requiere_ack=true` by §12.3 (fixed 120s, no backoff), v1.6.**
+    `requiere_ack=true` by Â§12.3 (fixed 120s, no backoff), v1.6.**
 17. **Audit (v1.1):** `whiteboard/audit_log.md` records sends/receives
     in pipe format `| timestamp | origin | destination | token | type | status | note |`.
 18. **Monitoring (v1.1):** `GET /session/:id` is the lightweight presence method;
@@ -1358,12 +1364,12 @@ History of findings by version (moved from CROSS_TALK.md on 2026-08-11).
     Antidote: explicit and firm nudge with `prompt_async` specifying what to deliver
     and what to ignore (see 6.1c).
 27. **Round 2 verification validated (v1.5, Bugs TXBridge task):** the flow
-    analysis (R1) → verification (R2, each advisor responds CONFIRMO/RECHAZO/
-    AJUSTO to the leader's consolidated list) → consensus (R3, vote ACEPTO/
+    analysis (R1) â†’ verification (R2, each advisor responds CONFIRMO/RECHAZO/
+    AJUSTO to the leader's consolidated list) â†’ consensus (R3, vote ACEPTO/
     AJUSTO) closed a list of 15 bugs + 4 candidates with 3/3 OK signatures in
     each round and without reopening false positives. The R2 phase detected an
     inconsistency from the leader itself (outputAtten listed as "functional" in
-    discarded when Bug B4 marked it as dead code) → the leader corrected it.
+    discarded when Bug B4 marked it as dead code) â†’ the leader corrected it.
     Guideline: the leader also verifies the advisors' claims against the
     code before consolidating.
 28. **Sender identity in the message (v1.5, tested 2026-08-10):** model-d

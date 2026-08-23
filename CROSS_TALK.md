@@ -1,9 +1,9 @@
-# OpenCode Cross-Talk between OpenCode Desktop sessions
+﻿# OpenCode Cross-Talk between OpenCode Desktop sessions
 
 Reference document so that any agent in this project can communicate
 with other open chats/sessions in the same project.
 
-> **Protocol version: 1.8** (handshake `ACK-PROTOCOLO:1.8`). Release: **v1.16.0**
+> **Protocol version: 2.0** (handshake `ACK-PROTOCOLO:2.0`). Release: **v2.1.0**
 > (2026-08-21): atomic idempotency CLAIM (TOCTOU), hardened port discovery with
 > `source`/`degraded` metadata, cross-platform curl resolution, v1 ACK parser
 > deprecation (removal in v1.17), and a hard total delivery cap (`TOTAL_TIMEOUT`
@@ -1680,7 +1680,7 @@ files (audit, escalated, DLQ, outbox); they do not rewrite previous lines.
 
 - **Envelope JSON v2 exclusive (Fase 3, v2.0): COMPLETED.** Endgame of improvement #1
   (GLM-5.3 design, "Sobre estructurado JSON"). Since v2.0 the engine accepts
-  **only** `ENVELOPE-V2: {json}` / pure JSON — v1 legacy ACK:/NACK: free-text formats are
+  **only** `ENVELOPE-V2: {json}` / pure JSON â€” v1 legacy ACK:/NACK: free-text formats are
   **rejected** (see sec 12.1 ENVELOPE-V2 note, v1.9.0). Fase 3
   made v2 the ONLY format: `Parse-CrossEnvelope` (v2-only, legacy
   v1 regexes removed in v1.17) is the sole parser, and the contract becomes
