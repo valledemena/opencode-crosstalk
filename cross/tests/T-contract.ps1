@@ -98,13 +98,8 @@ Assert-True (-not $rb3.valid) 'timestamp non-ISO rejected' "$($rb3.valid)"
 $both = "ENVELOPE-V2: $ack ACK:OTRO:ses_Z:m9"
 $rb4 = Parse-CrossEnvelope $both
 Assert-True ($rb4.valid -and $rb4.token -eq 'MSG-abc123' -and $rb4.emitter -eq 'ses_B') 'v2 wins over trailing v1 junk' "$($rb4.token)|$($rb4.emitter)"
-Write-Host "== T-contract: ConvertTo-CrossV1 round-trip =="
-$v1msg = ConvertTo-CrossV1 -ParsedEnvelope $p
-Assert-True ($v1msg -match '^\[msg_id=msg_lead_001 \| run_id=R1 \| token=T1 \| requiere_ack=true') 'message v2 -> v1 envelope' $v1msg
-$v1ack = ConvertTo-CrossV1 -ParsedEnvelope $pa
-Assert-True ($v1ack -eq 'ACK:MSG-abc123:ses_B:model-b') 'ack v2 -> v1 ACK' $v1ack
-$v1nack = ConvertTo-CrossV1 -ParsedEnvelope $pn
-Assert-True ($v1nack -eq 'NACK:MSG-abc123:ses_B:model-b:TASK_TOO_COMPLEX') 'nack v2 -> v1 NACK' $v1nack
+Write-Host "== T-contract: ConvertTo-CrossV1 removed in v2.0 =="
+Assert-True (-not (Get-Command ConvertTo-CrossV1 -ErrorAction SilentlyContinue)) '''ConvertTo-CrossV1 removed (v2.0 breaking)''' '''removed'''
 
 Write-Host ""
 Write-Host ("RESULT: {0} pass, {1} fail" -f $pass, $fail)
