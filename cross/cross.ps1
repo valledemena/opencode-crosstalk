@@ -110,8 +110,8 @@ Usage:
                   [--state-file PATH]
   cross reconcile --msg msg_X --check-file PATH [--expected-token T] [--outbox-file PATH]
   cross aviso-spof [--apply] [--for ses_X] [--outbox-file PATH]
-  cross ack --token T --for-msg-id X [--to ses_Y] [--model M]
-  cross nack --token T --for-msg-id X --reason REASON [--note "..."] [--for-run-id R] [--to ses_Y] [--model M]
+  cross ack --token T --for-msg-id X [--to ses_SENDER] [--model M]
+  cross nack --token T --for-msg-id X --reason REASON [--note "..."] [--for-run-id R] [--to ses_SENDER] [--model M]
   cross resume --to ses_X --task-id TX [--from "checkpoint"] [--text "..."]
   cross restart-task --msg-id X [--to ses_Y] [--text "..."] [--max-attempts N] [--outbox-file PATH]
   cross nudge --to ses_X --task "..." [--token T]
@@ -132,7 +132,9 @@ Global flags:
 
 claim/release/done operate on idempotencia-procesados.md (append-only).
 validate runs consistency lint (outbox vs idempotencia, lease UTC).
-send delivers an IN_FLIGHT outbox entry via prompt_async (ACK/NACK, retries, lease).
+send delivers a message via prompt_async and waits for a v2 JSON ACK/NACK (retries, lease).
+  A --msg id with no outbox entry is auto-created (EN_VUELO) when --dest and --text are given;
+  --token defaults to the msg id so the receiver can ACK with a stable token.
   --no-wait sends without waiting for ACK (fire-and-forget, outbox remains IN_FLIGHT).
   --ack-timeout 0 equals no ACK (requires_ack=false, outbox CONFIRMED); use --no-wait for the opposite.
   NOTE: send ALWAYS runs an automatic sweep first (Invoke-CrossAutoSweep) that marks
@@ -151,9 +153,11 @@ poll diagnoses an outbox msg (ACKED/NACKED/WORKING/QUIET/TERMINAL).
 status summarizes outbox + idempotencia + escalated + dlq at a glance.
 reconcile checks whether a deliverable reached its destination by searching for its token in the check-file.
 aviso-spof detects expired IN_FLIGHT entries; --apply emits AVISO-SPOF (dry-run by default).
-ack emits an ACK to the destination (format ACK:<token>:<id>[:model], 3-4 segments).
-nack emits a NACK with a closed reason (CAPACITY|TOOL_MISSING|AMBIGUOUS_TASK|PROVIDER_DOWN|OTHER).
-  Enriched format (v1.7): includes --for-msg-id/--for-run-id for traceability (up to 7 segments).
+ack emits a v2 JSON ACK to the sender's session (--to defaults to your own id).
+  The port/password are auto-resolved when no --port is given (v2.1.1 fix).
+nack emits a v2 JSON NACK with a closed reason (CAPACITY|TOOL_MISSING|AMBIGUOUS_TASK|PROVIDER_DOWN|OTHER).
+whoami reports model from config/--model, or auto-detects it from the OpenCode API (model_source).
+Paths in the config (whiteboard_dir, diario_dir, log_path) resolve against the config file, not the cwd.
 resume sends a continuation instruction (does NOT create msg_id, does NOT increment attempt).
 restart-task resends the task with the SAME msg_id (attempt+1; OUTBOX_MSG_NOT_FOUND/MAX_RETRIES_EXCEEDED).
 nudge sends a firm prompt that ignores previous 'Continue' messages.
@@ -217,11 +221,21 @@ switch ($Command) {
             $r = New-Result -Ok $false -Code 64 -Data @{ err = 'NO_IDENTITY'; detail = 'neither config nor env defines my_session_id. Edit cross.config.json (my_session_id/leader_session_id/my_model) or pass --session-id/--model/--role overrides.' } -Cmd 'whoami'
             Out-Result $r 'whoami' -Watch $watch
         }
+        # v2.1.1: model is API-derivable. If neither config nor --model defines it,
+        # ask the server (GET /session/:id -> model.id). No manual guessing.
+        $modelSource = if ($overrideModel) { 'override' } elseif ($model) { 'config' } else { '' }
+        if (-not $model) {
+            $ep = Resolve-CrossEndpoint -Port $PortArg -Password $PasswordArg -NoCache:$NoCache -HealthSkip:$HealthSkip
+            if ($ep.ok) {
+                $st = Get-CrossSessionState -Id $sid -Port $ep.port -Password $ep.password
+                if ($st.ok -and $st.model) { $model = $st.model; $modelSource = 'api' }
+            }
+        }
         $shared = $false
         if ($source -eq 'config' -and [string]$config.my_session_id -eq [string]$config.leader_session_id) {
             $shared = $true
         }
-        $r = New-Result -Ok $true -Code 0 -Data @{ session_id = $sid; model = $model; role = $role; identity_source = $source; shared_config = $shared; protocol_version = $config.protocol_version } -Cmd 'whoami'
+        $r = New-Result -Ok $true -Code 0 -Data @{ session_id = $sid; model = $model; model_source = $modelSource; role = $role; identity_source = $source; shared_config = $shared; protocol_version = $config.protocol_version } -Cmd 'whoami'
         Out-Result $r 'whoami' -Watch $watch
     }
     'sessions' {
@@ -434,7 +448,7 @@ switch ($Command) {
         $watch = [System.Diagnostics.Stopwatch]::StartNew()
         $msg = [string]$flags['msg']
         $text = if ($flags['text']) { [string]$flags['text'] } else { '' }
-        
+        $autoCreated = $false
         if (-not $msg) {
             if (-not $text) {
                 $r = New-Result -Ok $false -Code 64 -Data @{ err = 'USAGE_ERROR'; detail = 'missing --msg msg_id or --text' } -Cmd 'send'
@@ -468,8 +482,24 @@ switch ($Command) {
         } else {
             $outboxFile = [string]$flags['outbox-file']
             $entry = Get-OutboxEntry -MsgId $msg -Path $outboxFile
+            # v2.1.1: an explicit --msg with --dest/--text auto-creates its outbox
+            # entry (EN_VUELO). Before, a typo/new id made send fail with
+            # OUTBOX_MSG_NOT_FOUND even though delivery was perfectly possible.
+            if (-not $entry -and $flags['dest'] -and $text) {
+                $newToken = if ($flags['token']) { [string]$flags['token'] } else { $msg }
+                $addRes = Add-OutboxEntry -MsgId $msg -Dest ([string]$flags['dest']) `
+                    -RunId ([string]$flags['run-id']) -Token $newToken `
+                    -Lease ([string]$flags['lease']) -Sucesor ([string]$flags['sucesor']) -Path $outboxFile
+                if (-not $addRes.ok) {
+                    $r = New-Result -Ok $false -Code 2 -Data @{ err = $addRes.err; detail = $addRes.detail } -Cmd 'send'
+                    Out-Result $r 'send' -Watch $watch
+                    return
+                }
+                $autoCreated = $true
+                $entry = Get-OutboxEntry -MsgId $msg -Path $outboxFile
+            }
             if (-not $entry) {
-                $r = New-Result -Ok $false -Code 64 -Data @{ err = 'OUTBOX_MSG_NOT_FOUND'; detail = "no outbox entry found for $msg" } -Cmd 'send'
+                $r = New-Result -Ok $false -Code 64 -Data @{ err = 'OUTBOX_MSG_NOT_FOUND'; detail = "no outbox entry found for $msg (pass --dest and --text to auto-create it)" } -Cmd 'send'
                 Out-Result $r 'send' -Watch $watch
                 return
             }
@@ -515,8 +545,13 @@ switch ($Command) {
         $backoffSec = if ($config.retry_backoff_s) { [int]$config.retry_backoff_s } else { 2 }
         $sweep = Invoke-CrossAutoSweep -Path $outboxFile -ExcludeMsgId $msg -LeaseMinutes $config.default_lease_minutes -DryRun:([bool]$flags['dry-run-sweep'])
         $res = New-CrossDelivery -MsgId $msg -Dest $dest -Text $text -RunId $runId -Token $token -Lease $lease -Sucesor $sucesor -RequiereAck:$reqAck -OutboxPath $outboxFile -AckTimeoutSec $ackTimeout -MaxAttempts $maxAttempts -InitialAttempt $attempt -BackoffSec $backoffSec -NoWait:([bool]$flags['no-wait']) -Port $PortArg -Password $PasswordArg -NoCache:$NoCache -HealthSkip:$HealthSkip
+        $warnings = @()
+        if ($res.ack -and $res.ack_id -and $dest -and ([string]$res.ack_id -ne [string]$dest)) {
+            $warnings += 'ACK_EMITTER_MISMATCH: ACK emitter differs from destination. Shared cross.config.local.json? Set CROSS_MY_MY_SESSION_ID/CROSS_MY_MY_MODEL on the receiver.'
+        }
         $r = New-Result -Ok $res.ok -Code $(if ($res.ok) { 0 } else { 2 }) -Data @{
             msg_id = $msg; dest = $dest; outbox_state = $res.state; attempt = $res.attempt
+            auto_created = $autoCreated; warnings = $warnings
             err = $res.err; detail = $res.detail; ack = $res.ack; ack_id = $res.ack_id; ack_model = $res.ack_model
             reason = $res.reason; reason_code = $res.reason_code; http_status = $res.http_status; session_growing = $res.session_growing
             ack_latency_ms = $res.ack_latency_ms; no_wait = $res.no_wait
@@ -664,8 +699,17 @@ switch ($Command) {
     'ack' {
         $watch = [System.Diagnostics.Stopwatch]::StartNew()
         $res = Send-CrossAck -Token ([string]$flags['token']) -ForMsgId ([string]$flags['for-msg-id']) -Dest ([string]$flags['to']) -Model ([string]$flags['model']) -Port $PortArg -Password $PasswordArg
+        $warnings = @()
+        if ($res.ok -and $res.ack_text -and $res.to) {
+            try {
+                $pe = Parse-CrossEnvelope ([string]$res.ack_text)
+                if ($pe.valid -and $pe.emitter -and ([string]$pe.emitter -eq [string]$res.to)) {
+                    $warnings += 'SELF_ACK: the envelope emitter equals the destination. You are probably sharing cross.config.local.json; set CROSS_MY_MY_SESSION_ID/CROSS_MY_MY_MODEL.'
+                }
+            } catch { }
+        }
         $r = New-Result -Ok $res.ok -Code $(if ($res.ok) { 0 } else { 64 }) -Data @{
-            ack_text = $res.ack_text; segments = $res.segments; to = $res.to; sent = $res.sent
+            ack_text = $res.ack_text; segments = $res.segments; to = $res.to; sent = $res.sent; warnings = $warnings
             err = $res.err; detail = $res.detail; audit_ok = $res.audit_ok
         } -Cmd 'ack'
         Out-Result $r 'ack' -Watch $watch
@@ -673,9 +717,18 @@ switch ($Command) {
     'nack' {
         $watch = [System.Diagnostics.Stopwatch]::StartNew()
         $res = Send-CrossNack -Token ([string]$flags['token']) -ForMsgId ([string]$flags['for-msg-id']) -Reason ([string]$flags['reason']) -Note ([string]$flags['note']) -ForRunId ([string]$flags['for-run-id']) -Dest ([string]$flags['to']) -Model ([string]$flags['model']) -Port $PortArg -Password $PasswordArg
+        $warnings = @()
+        if ($res.ok -and $res.nack_text -and $res.to) {
+            try {
+                $pn = Parse-CrossEnvelope ([string]$res.nack_text)
+                if ($pn.valid -and $pn.emitter -and ([string]$pn.emitter -eq [string]$res.to)) {
+                    $warnings += 'SELF_ACK: the envelope emitter equals the destination. You are probably sharing cross.config.local.json; set CROSS_MY_MY_SESSION_ID/CROSS_MY_MY_MODEL.'
+                }
+            } catch { }
+        }
         $r = New-Result -Ok $res.ok -Code $(if ($res.ok) { 0 } else { 64 }) -Data @{
             nack_text = $res.nack_text; segments = $res.segments; to = $res.to; reason = $res.reason
-            sent = $res.sent; err = $res.err; detail = $res.detail; audit_ok = $res.audit_ok
+            sent = $res.sent; warnings = $warnings; err = $res.err; detail = $res.detail; audit_ok = $res.audit_ok
         } -Cmd 'nack'
         Out-Result $r 'nack' -Watch $watch
     }

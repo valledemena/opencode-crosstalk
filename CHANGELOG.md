@@ -9,6 +9,47 @@ mixed current specification with changelog and PowerShell pitfalls).
 
 ## Versions
 
+### v2.1.1 (2026-10-19) - Install & ACK hardening (found in a real installation)
+
+Origin: full setup by a fresh LLM session (MUSE) coordinating 3 peer sessions.
+
+- **Import order bug:** `cross-action.psm1` imported `cross-envelope` only when
+  `ConvertTo-AsciiSafe` was missing. `cross.ps1` loads `cross-format` first, so
+  `New-CrossAckJson` stayed undefined and `cross ack` failed at the CLI. The
+  guard now checks `New-CrossAckJson` explicitly (+ `Resolve-CrossEndpoint`
+  guard). Regression: T-ack mirrors the CLI import order.
+- **Silent ACK/NACK no-op:** with `--port` omitted, `Send-CrossAck`/`Send-CrossNack`
+  returned `ok:true, sent:false`. Both now resolve the endpoint and return
+  `SEND_FAILED` on HTTP errors.
+- **cwd-dependent paths:** `whiteboard_dir`/`diario_dir`/`log_path` resolved
+  against the caller's cwd (`OUTBOX_MSG_NOT_FOUND` outside `cross/`).
+  `Import-CrossConfig` resolves relative values against the config file and
+  keeps `%ENV%` expansion. Regression: T-transport.
+- **Outbox auto-create:** `send --msg X --dest Y --text Z` without a prior outbox
+  entry failed with `OUTBOX_MSG_NOT_FOUND`; it now creates the entry (`EN_VUELO`,
+  token defaults to the msg id) and reports `auto_created`.
+- **API-derived model:** `whoami` only read `my_model` from the config. It now
+  falls back to `GET /session/:id` (`model.id`) and reports `model_source`
+  (config/override/api). `Get-CrossSessionState` extracts `model.id` from the
+  object returned by current builds (previously `[object]`).
+- **Self-ACK / emitter mismatch warnings:** `ack`/`nack` now warn when the
+  envelope emitter equals the destination (`SELF_ACK`), and `send` warns when
+  the ACK emitter differs from the destination (`ACK_EMITTER_MISMATCH`). This
+  detects shared `cross.config.local.json` setups that silently "confirm"
+  messages with the wrong identity.
+- **Safe install:** `install.ps1` guessed the session by title (`leader|lider`)
+  and otherwise took `sessions[0]` (caused stale configs). Rewritten with
+  `-SessionId/-Model/-Role/-NonInteractive`, API validation, candidate listing
+  and exit code 2 when ambiguous, API model written, health/whoami verification,
+  existing role preserved and an ACK recipe.
+- **Test hygiene:** T-send no longer dies on CLI stderr warnings under
+  `$ErrorActionPreference='Stop'` (PS 5.1 NativeCommandError); T-transport uses
+  `-NoCache` so a stale port hint cannot make the suite order-dependent.
+- **Docs:** README (setup, troubleshooting table, v2 handshake), QUICKSTART,
+  AGENTS.md, llms.txt, USER_GUIDE, CROSS_WINDOWS (pitfalls 9-13), CROSS_TALK
+  (handshake/ACK/NACK v2, CLI section, config paths). CLI `--help` updated.
+  `protocol_version` stays 1.8 (config marker); wire format is unchanged.
+
 ### v2.1.0 (2026-08-23) - RLock + QUICKSTART
 
 - **B1 (NEMOTRON):** Get-CrossMutex RLock reentrant with MutexCache (CrossFileLock + ReentrantMutex) — T-idempotencia-race 8/8, T-race 5×9/9.

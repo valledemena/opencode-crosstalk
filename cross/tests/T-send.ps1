@@ -19,7 +19,16 @@ if (-not $haveServer) {
 function Invoke-CrossCli {
     param([string[]]$CliArgs)
     $tmp = Join-Path $env:TEMP ("cross_cli_" + [System.Guid]::NewGuid().ToString('N') + ".json")
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $cli @CliArgs 2>$null | Out-File -LiteralPath $tmp -Encoding ascii
+    # PS 5.1 turns native stderr into NativeCommandError when EAP=Stop, even with
+    # 2>$null. The CLI legitimately warns on stderr (e.g. stale port hints), so
+    # relax EAP around the child process.
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $cli @CliArgs 2>$null | Out-File -LiteralPath $tmp -Encoding ascii
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
     $raw = Get-Content -LiteralPath $tmp -Raw
     Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue
     return $raw

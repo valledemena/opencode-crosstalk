@@ -57,7 +57,9 @@ if ($pw) {
 }
 
 Write-Host "== T-transport: health raw =="
-$ep = Resolve-CrossEndpoint -HealthSkip
+# -NoCache (not -HealthSkip): a stale well-known/cache hint must not make this
+# suite order-dependent. Detection is refreshed from logs and the healthy port.
+$ep = Resolve-CrossEndpoint -NoCache
 Assert-True ($ep.ok) 'Resolve-CrossEndpoint ok' ($ep.err)
 if ($ep.ok) {
     Assert-True ($ep.port -gt 0) 'port > 0' $ep.port
@@ -141,6 +143,25 @@ try {
 if ($haveServer) {
     $netrcLeftovers = @(Get-ChildItem $env:TEMP -Filter 'cross_netrc_*.txt' -ErrorAction SilentlyContinue)
     Assert-True ($netrcLeftovers.Count -eq 0) 'no netrc leftovers after Invoke-CrossApi/HealthRaw (finally cleanup)' "leftovers=$($netrcLeftovers.Count)"
+}
+
+Write-Host "== T-transport: v2.1.1 relative config paths resolve against the config file =="
+$relDir = Join-Path $env:TEMP ('cross_trel_' + [System.Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $relDir | Out-Null
+$relCfgPath = Join-Path $relDir 'cfg.json'
+$relCfg = [ordered]@{ my_session_id = 'ses_rel'; my_role = 'advisor'; whiteboard_dir = './wb'; log_path = 'logs\x.log' }
+[System.IO.File]::WriteAllText($relCfgPath, ($relCfg | ConvertTo-Json), (New-Object System.Text.UTF8Encoding($false)))
+$oldCwd = Get-Location
+try {
+    Set-Location $env:TEMP   # deliberately different from the config directory
+    $cfgRel = Import-CrossConfig -ConfigPath $relCfgPath
+    $expectedWb = Join-Path $relDir 'wb'
+    Assert-True ([System.IO.Path]::IsPathRooted([string]$cfgRel.whiteboard_dir)) 'whiteboard_dir made absolute' $cfgRel.whiteboard_dir
+    Assert-True ([string]$cfgRel.whiteboard_dir -eq $expectedWb) 'whiteboard_dir resolved against config dir' $cfgRel.whiteboard_dir
+    Assert-True ([string]$cfgRel.log_path -eq (Join-Path $relDir 'logs\x.log')) 'log_path resolved against config dir' $cfgRel.log_path
+} finally {
+    Set-Location $oldCwd
+    Remove-Item -LiteralPath $relDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host ""

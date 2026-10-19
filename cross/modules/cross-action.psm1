@@ -7,9 +7,14 @@ Set-StrictMode -Version 2.0
 
 if (-not (Get-Command ConvertTo-AsciiSafe -ErrorAction SilentlyContinue)) {
     Import-Module (Join-Path $PSScriptRoot '..\lib\cross-format.psm1') -Force -DisableNameChecking
+}
+if (-not (Get-Command New-CrossAckJson -ErrorAction SilentlyContinue)) {
     Import-Module (Join-Path $PSScriptRoot 'cross-envelope.psm1') -Force -DisableNameChecking
 }
 if (-not (Get-Command Get-CrossConfig -ErrorAction SilentlyContinue)) {
+    Import-Module (Join-Path $PSScriptRoot 'cross-transport.psm1') -Force -DisableNameChecking
+}
+if (-not (Get-Command Resolve-CrossEndpoint -ErrorAction SilentlyContinue)) {
     Import-Module (Join-Path $PSScriptRoot 'cross-transport.psm1') -Force -DisableNameChecking
 }
 if (-not (Get-Command Read-OutboxLog -ErrorAction SilentlyContinue)) {
@@ -60,7 +65,17 @@ function Send-CrossAck {
     if ($SendFn) {
         [void](& $SendFn $Dest $ackText)
         $sent = $true
-    } elseif ($Port) {
+    } else {
+        if (-not $Port) {
+            $ep = Resolve-CrossEndpoint -Port $Port -Password $Password
+            if ($ep.ok) {
+                $Port = [int]$ep.port
+                if (-not $Password) { $Password = [string]$ep.password }
+            }
+        }
+        if (-not $Port) {
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = 'endpoint unresolved (no port)'; ack_text = $ackText }
+        }
         $payload = @{ parts = @(@{ type = 'text'; text = $ackText }) } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/session/$Dest/prompt_async" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
@@ -101,7 +116,17 @@ function Send-CrossNack {
     if ($SendFn) {
         [void](& $SendFn $Dest $nackText)
         $sent = $true
-    } elseif ($Port) {
+    } else {
+        if (-not $Port) {
+            $ep = Resolve-CrossEndpoint -Port $Port -Password $Password
+            if ($ep.ok) {
+                $Port = [int]$ep.port
+                if (-not $Password) { $Password = [string]$ep.password }
+            }
+        }
+        if (-not $Port) {
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = 'endpoint unresolved (no port)'; nack_text = $nackText }
+        }
         $payload = @{ parts = @(@{ type = 'text'; text = $nackText }) } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/session/$Dest/prompt_async" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {

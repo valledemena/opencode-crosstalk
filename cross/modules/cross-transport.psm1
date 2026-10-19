@@ -66,6 +66,19 @@ function Import-CrossConfig {
     }
     if ([Environment]::GetEnvironmentVariable('CROSS_WHITEBOARD_DIR')) { $config.whiteboard_dir = [Environment]::GetEnvironmentVariable('CROSS_WHITEBOARD_DIR') }
     if ([Environment]::GetEnvironmentVariable('CROSS_LOG_PATH')) { $config.log_path = [Environment]::GetEnvironmentVariable('CROSS_LOG_PATH') }
+    # v2.1.1: relative paths resolve against the CONFIG FILE directory, never the
+    # caller's cwd (previously "./whiteboard" pointed at whatever directory the
+    # CLI happened to run from, orphaning the outbox and breaking send/ack).
+    $configDir = Split-Path -Parent $configPath
+    foreach ($key in @('whiteboard_dir', 'diario_dir', 'log_path')) {
+        $prop = $config.PSObject.Properties[$key]
+        if ($null -eq $prop -or -not $prop.Value) { continue }
+        $val = [Environment]::ExpandEnvironmentVariables([string]$prop.Value)
+        if ($val -and -not [System.IO.Path]::IsPathRooted($val)) {
+            $val = [System.IO.Path]::GetFullPath((Join-Path $configDir $val))
+        }
+        $config.$key = $val
+    }
     $script:Config = $config
     return $config
 }
@@ -323,11 +336,24 @@ function Get-CrossSessionState {
         if ($null -ne $p -and $null -ne $p.Value) { return [string]$p.Value }
         return ''
     }
+    # v2.1.1: the API returns model as an OBJECT ({id,providerID,variant}) in
+    # current OpenCode builds. Extract .id; accept a bare string for older ones.
+    $modelStr = ''
+    $modelProp = $s.PSObject.Properties['model']
+    if ($null -ne $modelProp -and $null -ne $modelProp.Value) {
+        $mv = $modelProp.Value
+        if ($mv -is [string]) {
+            $modelStr = $mv
+        } else {
+            $idProp = $mv.PSObject.Properties['id']
+            if ($null -ne $idProp -and $idProp.Value) { $modelStr = [string]$idProp.Value }
+        }
+    }
     return @{
         ok = $true; status_code = 200
         status = (Get-Str2 $s 'status')
         last_activity_at = (Get-Str2 $s 'lastActivityAt')
-        model = (Get-Str2 $s 'model')
+        model = $modelStr
         checkable = $true
     }
 }

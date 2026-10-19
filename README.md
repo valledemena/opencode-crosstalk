@@ -38,22 +38,29 @@ OpenCode Desktop runs a local HTTP server (`http://127.0.0.1:PORT`) that exposes
 ### Setup
 
 1. Clone this repo
-2. Run the setup helper (detects your session and writes a git-ignored `cross/cross.config.local.json`):
+2. Run the setup helper. It validates your session via the API, derives the
+   model from the API (never guesses), writes the git-ignored
+   `cross/cross.config.local.json` and verifies `health`/`whoami`:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
+# If it reports ambiguity (exit 2), choose explicitly:
+powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -SessionId ses_YOUR_ID
 ```
 
-3. Or configure manually — edit `cross/cross.config.json` (or copy it to `cross/cross.config.local.json` so your identity never gets committed):
+3. Or configure manually — write ONLY `cross/cross.config.local.json` (never edit
+   the publish template `cross.config.json`, which would commit your identity):
 
 ```json
 {
     "my_session_id": "ses_YOUR_SESSION_ID",
-    "leader_session_id": "ses_LEADER_SESSION_ID",
-    "my_model": "your-model-name",
     "my_role": "advisor"
 }
 ```
+
+`my_model` is optional: `whoami` derives it from the API and reports
+`model_source` (`config` / `override` / `api`). Several agents sharing one clone
+should use `CROSS_MY_MY_SESSION_ID` / `CROSS_MY_MY_MODEL` env overrides instead.
 
 4. Run the CLI:
 
@@ -73,9 +80,9 @@ cross sessions                  # list all sessions in the project
 cross read --session ses_X      # read messages from a session
 cross config --list             # show current configuration
 
-cross send --msg MSG_ID --dest ses_Y --text "..."   # send a message
-cross ack --token T --for-msg-id X                   # acknowledge receipt
-cross nack --token T --for-msg-id X --reason REASON   # reject with reason
+cross send --msg MSG_ID --dest ses_Y --token T --text "..."  # send (outbox auto-created)
+cross ack --token T --for-msg-id X --to ses_SENDER          # v2 JSON ACK to the sender
+cross nack --token T --for-msg-id X --reason REASON --to ses_SENDER  # reject with reason
 
 cross status                    # overview of outbox + idempotency + DLQ
 cross scan                      # check for expired leases
@@ -94,13 +101,14 @@ With 3 sessions open (A = you, B = advisor, C = advisor):
 .\cross.ps1 health                       # ok: true
 
 # 2. Send a task to session B (writes outbox, wakes B via prompt_async)
-.\cross.ps1 send --msg t1 --dest ses_B --text "Analyze the poll results and reply"
+.\cross.ps1 send --msg t1 --dest ses_B --token T1 --text "Analyze the poll results and reply"
 # -> outbox.md: [ts] OUTBOX | t1 | dest=ses_B | ESTADO=EN_VUELO
 
-# 3. B replies with its ACK/NACK handshake (see CROSS_TALK.md 7.1/7.5)
-#    Sender polls and classifies the outcome:
+# 3. B acknowledges FIRST with the v2 JSON envelope, then works
+#    (B runs, from cross/: .\cross.ps1 ack --token T1 --for-msg-id t1 --to ses_A)
+#    The sender polls and classifies the outcome:
 .\cross.ps1 status
-# -> t1 CONFIRMADO (ACK:T1:ses_B:model received)
+# -> t1 CONFIRMADO (v2 ack envelope from ses_B received)
 
 # 4. B fails to answer in time -> diagnose why, then retry or escalate
 .\cross.ps1 diagnose --msg t1             # provider down / agent sleeping / config error
@@ -115,10 +123,14 @@ teams alive — see [CROSS_TALK.md](CROSS_TALK.md) sections 4 and 12.
 
 ```
 cross-talk/
-├── CROSS_TALK.md              # Protocol specification (v1.8.3)
+├── CROSS_TALK.md              # Protocol specification (wire format: envelope v2)
+├── AGENTS.md                  # LLM bootstrap (read me first)
+├── QUICKSTART.md              # 3-minute human quick start
+├── USER_GUIDE.md              # Non-coder guide (Director/Leader/Advisors)
+├── llms.txt                   # Curated doc index for LLM agents
 ├── CHANGELOG.md               # Version history and discoveries
 ├── CROSS_WINDOWS.md           # PowerShell 5.1 / Windows pitfalls
-├── install.ps1                # One-command setup (detects session, writes local config)
+├── install.ps1                # One-command setup (API-validated identity + model)
 ├── LICENSE                    # MIT
 ├── README.md                  # This file
 └── cross/
@@ -153,7 +165,7 @@ cross-talk/
 
 The full protocol rules are in [CROSS_TALK.md](CROSS_TALK.md) (section 4 for messaging, section 12 for the anti-sleep protocol).
 
-## Arquitectura (v2.1.0)
+## Arquitectura (v2.1.1)
 
 ```mermaid
 graph TB
@@ -204,6 +216,24 @@ Get-ChildItem T-*.ps1 | ForEach-Object { powershell -NoProfile -ExecutionPolicy 
 # Run a specific test
 powershell -NoProfile -ExecutionPolicy Bypass -File T-send.ps1
 ```
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|--|--|--|
+| `NO_IDENTITY` | No local config nor env overrides | Run `install.ps1`, or pass `--session-id/--model`, or set `CROSS_MY_MY_SESSION_ID` |
+| `OUTBOX_MSG_NOT_FOUND` | (pre-v2.1.1) CLI run outside `cross/`: relative `whiteboard_dir` pointed to the wrong folder | Upgrade (paths resolve against the config file) or run from `cross/`. With `--dest`+`--text` the entry is now auto-created |
+| ACK sent but sender never sees it | Plain-text ACK, wrong recipient, or no token | Use `.\cross.ps1 ack --token T --for-msg-id X --to <sender_session>`; only `ENVELOPE-V2: {json}` / pure JSON is parsed |
+| `whoami` shows empty model | `my_model` missing from config | v2.1.1 derives it from the API (`model_source=api`); otherwise pass `--model` |
+| `AUTH_FAILED` | Stale password in `.env` vs live env var | `OPENCODE_SERVER_PASSWORD` (env) wins; `cross health` reports `password_source` |
+| `ACK_TIMEOUT` | Destination busy/asleep | `cross nudge --to <id>`; `--ack-timeout 0` for fire-and-forget |
+| `install.ps1` exits 2 | Identity ambiguous (no/several candidates) | Re-run with `-SessionId ses_...` (it never picks `sessions[0]`) |
+| Two agents share one clone | Same local config for both | Give each one `CROSS_MY_MY_SESSION_ID` / `CROSS_MY_MY_MODEL` |
+| Local tests fail in T-ack/T-transport | A runtime `cross.config.local.json` overrides the template identity those suites assume | Move the sidecar aside (CI runs with the template) |
+
+If a session appears frozen after a provider error, check `cross diagnose --msg X`
+and the OpenCode logs; the anti-sleep protocol (`sigue`/RESUME) is described in
+`CROSS_TALK.md` section 12.
 
 ## License
 

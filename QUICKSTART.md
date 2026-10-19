@@ -2,26 +2,51 @@
 
 Verifiable messaging between OpenCode sessions (outbox + ACK/NACK + DLQ).
 
-> **v2.0 Breaking change:** only `ENVELOPE-V2` JSON messages are accepted.
-> Legacy v1 free-text `ACK:`/`NACK:` formats are rejected. Use `cross send`
-> (which emits v2) — do not craft v1-style lines by hand.
+> **v2 wire format:** only `ENVELOPE-V2` JSON (`ENVELOPE-V2: {json}` or pure
+> JSON) is accepted. Legacy v1 free-text `ACK:`/`NACK:`/`TOKEN:` lines are
+> rejected. Use the CLI - it emits v2 and posts it for you.
 
 ## 1. Prerequisites
 - OpenCode Desktop running (serves the local API).
 - PowerShell 5.1+ (Windows) or pwsh.
- - `curl` available — resolved cross-platform by `Get-CrossCurlCommand` (Windows: `curl.exe`; Linux/macOS: `curl`); `cross health` validates it.
-- `OPENCODE_SERVER_PASSWORD` in the environment or in `~/.config/opencode/.env`.
+- `curl` available - resolved cross-platform by `Get-CrossCurlCommand`
+  (Windows: `curl.exe`; Linux/macOS: `curl`); `cross health` validates it.
+- `OPENCODE_SERVER_PASSWORD` in the environment or in
+  `~/.config/opencode/.env` (the environment variable wins if both exist).
 
 ## 2. Set your identity (1 minute)
-Edit `cross/cross.config.json`:
-```json
-{ "my_session_id": "ses_YOUR_ID", "my_model": "your-model", "my_role": "advisor" }
+
+Run the setup helper from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
 ```
+
+It validates the session against the API, reads your **model from the API**
+(never from guesses), writes the git-ignored `cross/cross.config.local.json`
+and verifies `health` + `whoami`.
+
+If it cannot determine YOUR session unambiguously it prints the candidates and
+exits with code 2. Choose explicitly:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -SessionId ses_YOUR_ID
+```
+
+Manual alternative: write `cross/cross.config.local.json` yourself (do NOT edit
+the publish template `cross.config.json`):
+
+```json
+{ "my_session_id": "ses_YOUR_ID", "my_role": "advisor" }
+```
+
+`my_model` is optional: `whoami` derives it from the API when absent.
 
 ## 3. Verify connectivity
 ```powershell
 cd cross
 .\cross.ps1 health      # -> ok if the server answers /global/health
+.\cross.ps1 whoami      # session + model (model_source=config|override|api)
 .\cross.ps1 sessions    # list project sessions
 ```
 
@@ -29,19 +54,30 @@ cd cross
 ```powershell
 .\cross.ps1 send --msg msg_001 --dest ses_DEST --text "Hello"
 ```
+The outbox entry is auto-created if it does not exist (`auto_created: true`).
 Outbox states (`whiteboard/outbox.md`):
 EN_VUELO -> CONFIRMADO | NACKED | EXPIRADO | DLQ.
 
-## 5. If something fails
+## 5. When YOU receive a task: ACK first
+```powershell
+.\cross.ps1 ack --token <token> --for-msg-id <msg_id> --to <sender_session>
+```
+This posts a v2 JSON ACK to the sender's session and auto-resolves port/password.
+Then do the work; if you cannot, use `nack --reason CAPACITY|TOOL_MISSING|...`.
+
+## 6. If something fails
 ```powershell
 .\cross.ps1 status              # outbox/DLQ overview
 .\cross.ps1 diagnose --msg X    # why it failed
-.\cross.ps1 metrics             # ACK/NACK/timeout rates (v1 usage removed in v2.0)
+.\cross.ps1 metrics             # ACK/NACK/timeout rates
 ```
-Common errors: SERVER_NOT_FOUND (Desktop closed), AUTH_FAILED (password),
-ACK_TIMEOUT (destination busy - use nudge), DEST_NOT_FOUND (unknown session).
+Common errors: SERVER_NOT_FOUND (Desktop closed), AUTH_FAILED (password
+precedence), ACK_TIMEOUT (destination busy - use nudge), DEST_NOT_FOUND
+(unknown session), OUTBOX_MSG_NOT_FOUND (old bug: run from any cwd now works;
+paths resolve against the config file since v2.1.1).
 
 ## Next steps
+- LLM bootstrap: AGENTS.md
 - Full protocol: CROSS_TALK.md
 - User guide: USER_GUIDE.md
 - Windows pitfalls: CROSS_WINDOWS.md

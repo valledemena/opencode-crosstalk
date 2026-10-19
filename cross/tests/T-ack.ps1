@@ -1,10 +1,14 @@
 # Cross ack tests (Phase 4b): sending ACK to destination.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File tests\T-ack.ps1
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot '..\modules\cross-action.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '..\modules\cross-envelope.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '..\modules\cross-transport.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '..\modules\cross-delivery.psm1') -Force
+# v2.1.1 regression: mirror cross.ps1 import order (format loaded first, then
+# cross-action). Before the fix, cross-action skipped importing cross-envelope
+# in that order and `cross ack` failed with New-CrossAckJson not found.
+Import-Module (Join-Path $PSScriptRoot '..\lib\cross-format.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\modules\cross-action.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\modules\cross-envelope.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\modules\cross-transport.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\modules\cross-delivery.psm1') -Force -DisableNameChecking
 
 $pass = 0; $fail = 0
 function Assert-True {
@@ -12,6 +16,9 @@ function Assert-True {
     if ([bool]$Cond) { $script:pass++; Write-Host ("  PASS  {0}" -f $Name) }
     else { $script:fail++; Write-Host ("  FAIL  {0}  {1}" -f $Name, $Detail) }
 }
+
+Write-Host "== T-ack: cross-action auto-imports cross-envelope (import-order regression) =="
+Assert-True ([bool](Get-Command New-CrossAckJson -ErrorAction SilentlyContinue)) 'New-CrossAckJson available after format+action import' ''
 function New-Fixture {
     $dir = Join-Path $env:TEMP ('cross_tack_' + [System.Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $dir | Out-Null

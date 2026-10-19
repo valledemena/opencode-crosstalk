@@ -3,11 +3,13 @@
 Reference document so that any agent in this project can communicate
 with other open chats/sessions in the same project.
 
-> **Protocol version: 2.0** (handshake `ACK-PROTOCOLO:2.0`). Release: **v2.1.0**
-> (2026-08-21): atomic idempotency CLAIM (TOCTOU), hardened port discovery with
-> `source`/`degraded` metadata, cross-platform curl resolution, v1 ACK parser
-> deprecation (removal in v1.17), and a hard total delivery cap (`TOTAL_TIMEOUT`
-> -> DLQ). The wire protocol is unchanged.
+> **Wire format: ENVELOPE-V2 JSON** (only `ENVELOPE-V2: {json}` or pure JSON;
+> v1 free-text `ACK:`/`NACK:` is rejected since v2.0). Release: **v2.1.1**
+> (2026-10-19): ACK import-order + endpoint autodetection, cwd-independent
+> config paths, API-derived model (`whoami`), auto-created outbox entries and a
+> safe `install.ps1` (never guesses `sessions[0]`). Older narrative below that
+> shows `TOKEN:`/`ACK-PROTOCOLO:` lines is historical context only: the CLI is
+> the authoritative reference (`cross.ps1 --help`).
 >
 > This file contains ONLY the current rules. Version history lives in
 > **CHANGELOG.md**; Windows pitfalls in **CROSS_WINDOWS.md**. LLM agents:
@@ -102,7 +104,12 @@ Write-Host "Port: $port"
 - Authentication username: `opencode`
 - Password: normally `$env:OPENCODE_SERVER_PASSWORD` (the current
   process's variable). Also stored in `~/.config/opencode/.env`
-  under the key `OPENCODE_SERVER_PASSWORD`.
+  under the key `OPENCODE_SERVER_PASSWORD`. The environment variable takes
+  priority over the `.env` file; `cross health` reports `password_source`.
+- Identity/config: `cross/cross.config.local.json` (git-ignored) overrides the
+  publish template `cross.config.json`; `install.ps1` writes it. Relative paths
+  in the config (`whiteboard_dir`, `diario_dir`, `log_path`) resolve against the
+  CONFIG FILE directory, not the current working directory (v2.1.1).
 - Before continuing, verify that the credentials work:
 
 ```powershell
@@ -219,10 +226,12 @@ member signs its tokens with ITS ID and avoids confusion, the leader must
 explicitly telling them which ones are theirs:
 
 ```
-[Your session ID is: <DEST_ID> and your model is: <DEST_MODEL>.
-When replying, sign your tokens like this:
-TOKEN:<DEST_ID>:<DEST_MODEL>
-(for example ACUERDO-FINAL:ses_XXXXXXXX:model-b).
+[Your session ID is: <DEST_ID>. Your model is reported by
+`cross.ps1 whoami` (model_source=api if your config does not define it).
+When you receive this task, ACK FIRST and then process:
+  .\cross.ps1 ack --token <token> --for-msg-id <msg_id> --to <LEADER_ID>
+If you cannot do it:
+  .\cross.ps1 nack --token <token> --for-msg-id <msg_id> --reason CAPACITY --to <LEADER_ID>
 Your reply token will be: MEJORA-R1:<DEST_ID>:<DEST_MODEL>
 (example: MEJORA-R1:ses_abc123:model-b).
 The leader sending you this message is:
@@ -230,25 +239,23 @@ ID: <LEADER_ID> | model: <LEADER_MODEL>.
 ALWAYS reply to that origin session via API (prompt_async WITHOUT noReply):
 NEVER write the reply only in your own chat (the leader will not see it).
 VERIFY delivery: after sending, read the leader's history
-(GET /session/<LEADER_ID>/message) and confirm your token is there.
-PROTOCOL: CROSS-TALK v1.8 -- reply ACK-PROTOCOLO:1.8 if you understand
+(GET /session/<LEADER_ID>/message) and confirm your envelope is there.
+PROTOCOL: CROSS-TALK v2 (JSON ENVELOPE-V2 only) -- acknowledge with the CLI above
 ]
 ```
 
-**Protocol version handshake (v1.8, REVISION-89 consolidation 2026-08-19;**
-**originally v1.6.1 external-reviewer correction 2026-08-11):** the
-task message includes the line `PROTOCOLO: CROSS-TALK v1.8`. The advisor
-must reply `ACK-PROTOCOLO:1.8` (EXACTLY three segments: no `v`, no
-prefix) within the first 30 s, along with its first ACK if applicable. Rules:
-- If the advisor replies `ACK-PROTOLO:1.8` -> compatible version.
-- If it replies `ACK-PROTOCOLO:<other_version>` -> incompatibility: the leader sends
-  it the **canonical critical rules block (sec 4f)** and clarifies the
-  version difference before proceeding.
-- If it does NOT reply within 30 s -> the leader assumes it is an agent without protocol: it
-  sends the critical rules block (sec 4f) and retries the handshake.
-- An agent that does not understand the handshake may also reply
-  `NACK-PROTOCOLO:unsupported_version:<received_version>` (or with the version
-  it does understand); the leader decides whether to continue with that version or exclude it.
+**Handshake (v2, current):** the task message includes the line
+`PROTOCOLO: CROSS-TALK v2`. The advisor must acknowledge within the first 30 s
+with a v2 ACK envelope, which is its first ACK if applicable:
+`.\cross.ps1 ack --token <token> --for-msg-id <msg_id> --to <LEADER_ID>`.
+Rules:
+- ACK envelope arrives (`type:"ack"`) -> protocol understood; proceed.
+- A v1-style `ACK-PROTOCOLO:` line does NOT count as an ACK in v2: the leader sends
+  the **canonical critical rules block (sec 4f)** and repeats the request.
+- If it does NOT acknowledge within 30 s -> the leader assumes it is an agent
+  without protocol: it sends the critical rules block (sec 4f) and retries.
+- An agent that cannot process the task replies with a v2 NACK (7.5); the leader
+  decides whether to reassign or exclude it.
 - This handshake is repeated at the start of EVERY task (not per message).
 
 Each member receives an individualized message with ITS OWN ID and model.
@@ -310,7 +317,7 @@ This way no one guesses or copies other people's IDs.
 > **Concrete example (leader side, after writing the payload to a shared path):**
 >
 > ```powershell
-> $payload = @{ parts = @(@{ type = "text"; text = "TAREA-R1:ses_abc:model-b  PROTOCOLO: CROSS-TALK v1.8 -- reply ACK-PROTOCOLO:1.8" }) }
+> $payload = @{ parts = @(@{ type = "text"; text = "TAREA-R1:ses_abc:model-b  PROTOCOLO: CROSS-TALK v2 -- ACK with: cross.ps1 ack --token TAREA-R1 --for-msg-id msg_X --to ses_LEADER" }) }
 > $tmp = "$env:TEMP\opencode\e2e86_listo.json"
 > [System.IO.File]::WriteAllText($tmp, ($payload | ConvertTo-Json -Depth 3), (New-Object System.Text.UTF8Encoding($false)))
 > ```
@@ -328,12 +335,11 @@ This way no one guesses or copies other people's IDs.
 > in the message, the advisor cannot direct its reply (section 5) or sign
 > correctly.
 
-> **Signature with human-readable model (v1.2, 2026-08-10):** in addition to the session ID, the
-> signature includes the **model name** (`TOKEN:<SESSION_ID>:<MODEL>`). The
-> human user can read at a glance which model sent each message, instead
-> of deciphering a string of letters and numbers. The session ID is kept as
-> the canonical identifier (machine); the model is human-readable. The leader
-> gets the model from `GET /session` -> `model.id`.
+> **Signature with human-readable model (v1.2):** in addition to the session ID
+> (`emitter`), the JSON envelope includes the **model name** (`model`). The human
+> user can read at a glance which model sent each message. The session ID is the
+> canonical identifier (machine); the model is human-readable and comes from
+> `GET /session` -> `model.id` (the CLI/`whoami` do this automatically).
 
 > **Note on auto-detection of own ID (leader):** the leader knows its session ID
 > because it is the session it is running (e.g. it appears in the
@@ -507,21 +513,26 @@ Notes:
 
 ### 4f. Minimal critical rules (fallback handshake, v1.8)
 
-When an advisor does not reply `ACK-PROTOCOLO:1.8` within 30 s (4d), the leader sends
-it this **canonical block** to be copied verbatim, without editing or improvising. It is 8
-lines sufficient for any agent to operate without having read
+When an advisor does not acknowledge with a v2 ACK within 30 s (4d), the leader
+sends it this **canonical block** to be copied verbatim, without editing or
+improvising. It is sufficient for any agent to operate without having read
 CROSS_TALK.md:
 
 ```
-PROTOCOLO CROSS-TALK v1.8 -- CRITICAL RULES:
-1. Your ID and model are communicated by the leader (do not guess them).
+PROTOCOLO CROSS-TALK v2 -- CRITICAL RULES:
+1. Your session ID is given by the leader; your model comes from `cross.ps1 whoami` (API-derived).
 2. ALWAYS reply via API (prompt_async without noReply) to the leader's session.
-3. ACK first, then process: ACK:<token>:<your_ID>:<your_model>.
-4. If you CANNOT do the task: NACK:<token>:<your_ID>:<your_model>:<closed_reason>.
-5. Before processing: CLAIM your msg_id in idempotencia-procesados.md.
-6. When done: mark PROCESADO in idempotencia-procesados.md.
+3. ACK FIRST, then process (the CLI posts the v2 JSON envelope and auto-resolves port/password):
+   cd cross
+   .\cross.ps1 ack --token <token> --for-msg-id <msg_id> --to <leader_session>
+4. If you CANNOT do the task:
+   .\cross.ps1 nack --token <token> --for-msg-id <msg_id> --reason CAPACITY --to <leader_session>
+   Closed reasons: CAPACITY | TOOL_MISSING | AMBIGUOUS_TASK | PROVIDER_DOWN | OTHER.
+5. Before processing: `cross.ps1 claim --msg <msg_id>` (idempotency).
+6. When done: `cross.ps1 done --msg <msg_id>`.
 7. If you receive "sigue": it is RESUME, continue your context (it is not a new message).
-8. Full details in CROSS_TALK.md.
+8. Never hand-write ACK:/NACK:/TOKEN: lines: only ENVELOPE-V2 JSON is accepted.
+9. Full details in CROSS_TALK.md; bootstrap in AGENTS.md.
 ```
 
 With this, the fallback handshake is deterministic: any leader sends the same
@@ -567,23 +578,19 @@ If a session (e.g. `ses_AAAAAAAA`) sends you a message, to
 **reply to that session** run the following. Include a unique token so
 that the origin session can verify that your reply arrived.
 
-> **IMPORTANT (identifying the sender):** when the origin session requests a
-> fixed token (e.g. `ACUERDO-FINAL-C1`), ALL replies arrive with the
-> same token and it is impossible to know who sent it. Therefore, whenever
-> you reply, append **your own session ID and model** as a suffix
-> to the token, in the format `TOKEN:YOUR_SESSION_ID:YOUR_MODEL`
-> (e.g. `ACUERDO-FINAL-C1:ses_XXXXXXXX:model-b`).
-> This way the origin session can count one vote per agent, know exactly
-> who agreed or proposed changes, and show the human user which model
-> replied.
+> **IMPORTANT (identifying the sender, v2):** never hand-write signatures.
+> Identity travels inside the JSON envelope emitted by the CLI:
+> `.\cross.ps1 ack --token ACUERDO-FINAL-C1 --for-msg-id msg_X --to <origin>`
+> fills `emitter` (your session id) and `model` automatically.
+> This way the origin can count one vote per agent, know exactly who agreed or
+> proposed changes, and show the human user which model replied.
 
-> **HOW TO KNOW YOUR OWN ID AND MODEL (DO NOT GUESS):** your ID and model are
-> the ones the leader communicated to you in the task message (section 4d). NEVER
-> try to deduce them by filtering the session list by directory: several
-> agents share the same `directory` and it is easy to get confused (real pitfall:
-> an advisor signed with another's ID). If the task message does not specify
-> them, reply to the origin session with the fixed token WITHOUT a suffix; the leader
-> will identify you by the content.
+> **HOW TO KNOW YOUR OWN ID AND MODEL (DO NOT GUESS):** the leader communicates
+> your session ID in the task message (section 4d); your model is reported by
+> `.\cross.ps1 whoami` (from config, `--model`, or the API). NEVER try to deduce
+> them by filtering the session list by directory: several agents share the same
+> `directory` (real pitfall: an advisor signed with another's ID). If neither is
+> available, ask the leader before acknowledging.
 
 ```powershell
 # (0) Run section 1 credential detection first ($port / $password now in scope).
@@ -823,30 +830,27 @@ curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" 
 > The ACK complements the window verification (section 6): the window detects
 > the final reply; the ACK detects the initial processing.
 
-### 7.1. ACK format
+### 7.1. ACK format (ENVELOPE-V2, current)
 
-```
-ACK:<original_token>:<SENDER_SESSION_ID>:<SENDER_MODEL>
-```
+Since v2.0 the only accepted wire format is the JSON envelope. Emit it with the
+CLI, which fills `emitter`/`model`/`ts`, resolves the server endpoint and posts
+it to the sender:
 
-Example: if the leader sends the task with token `PROPUESTA-R1` and the advisor
-`ses_BBBBBBBB` (model `model-b`) processes it, the advisor sends:
-
-```
-ACK:PROPUESTA-R1:ses_BBBBBBBB:model-b
+```powershell
+cd cross
+.\cross.ps1 ack --token PROPUESTA-R1 --for-msg-id msg_lead_001 --to ses_BBBBBBBB
 ```
 
-> **Clarification (v1.3, advisor consensus 2026-08-10):** the ACK is built on
-> the **full received token** (including its suffix, if any) and appends at
-> the end the ID and model **of the ACK sender**:
-> `ACK:<full_received_token>:<ACK_SENDER_ID>:<ACK_SENDER_MODEL>`. The model goes
-> **always at the end**, separated by `:`. This way the original sender knows
-> who (which model) confirmed. The parser must tolerate 3 or 4 segments
-> (`ACK:token:ID` without model, or `ACK:token:ID:model`).
+Wire payload (arrives in the sender's session as a user message):
 
-The model is optional but recommended: it makes it human-readable which
-model confirmed the processing (section 4d). The session ID is the
-canonical identifier for vote counting.
+```json
+ENVELOPE-V2: {"v":2,"type":"ack","token":"PROPUESTA-R1","msg_id":"msg_lead_001","emitter":"ses_AAAA","model":"model-a","ts":"2026-10-19T12:00:00Z"}
+```
+
+`emitter` is the ACK sender's session ID (canonical for vote counting) and
+`model` is resolved from config/`--model` or the API (`whoami` shows
+`model_source`). The parser accepts the `ENVELOPE-V2: ` prefix or a pure JSON
+body. Old `ACK:<token>:<id>:<model>` lines are rejected in v2.0.
 
 ### 7.2. When to send the ACK
 
@@ -892,21 +896,22 @@ An advisor that **cannot** process the message declares it with a NACK instead
 of processing blindly or remaining silent. It is the canonical channel for
 CAPACITY failures (not just connectivity, which is reported in the chat itself, 6.1e):
 
-```
-NACK:<original_token>:<SENDER_SESSION_ID>:<SENDER_MODEL>:<REASON>
+Emit it with the CLI (same endpoint autodetection as the ACK):
+
+```powershell
+cd cross
+.\cross.ps1 nack --token PROPUESTA-R1 --for-msg-id msg_lead_001 --reason CAPACITY --to ses_BBBBBBBB
 ```
 
-**Enriched format (v1.7, external-reviewer BUG A correction -- traceability of the rejected
-message):** the NACK sender can add the original `msg_id` and `run_id`
-from the received envelope (12.1), so the leader correlates without ambiguity:
+Wire payload:
 
-```
-NACK:<original_token>:<SENDER_SESSION_ID>:<SENDER_MODEL>:<REASON>:<msg_id>:<run_id>
+```json
+ENVELOPE-V2: {"v":2,"type":"nack","token":"PROPUESTA-R1","msg_id":"msg_lead_001","emitter":"ses_AAAA","model":"model-a","reason":"CAPACITY","detail":"optional note","ts":"2026-10-19T12:00:00Z"}
 ```
 
-The engine's parser (`Parse-CrossEnvelope`) extracts `msg_id`/`run_id` from the
-v2 NACK envelope; v1 free-text NACK formats (legacy segments) are **rejected**
-in v2.0 (breaking).
+`msg_id` and `run_id` travel inside the JSON (no segment counting). The engine's
+parser (`Parse-CrossEnvelope`) extracts them; v1 free-text NACK formats are
+**rejected** in v2.0 (breaking).
 
 **Closed reasons (fixed enumeration, no free text -- the leader classifies them):**
 
@@ -927,8 +932,9 @@ Rules:
   outbox accordingly (`ESTADO=NACKED`).
 - A NACK is not an agent failure: it is operational information. Do not penalize the
   NACK sender.
-- The NACK is also used in the protocol handshake (4d):
-  `NACK-PROTOCOLO:unsupported_version:<received_version>`.
+- The NACK is also used to decline a task whose protocol/version is not
+  understood: send a v2 NACK with reason `OTHER` and `detail` describing the
+  version issue (the old `NACK-PROTOCOLO:` line is legacy and ignored).
 
 **Recommended leader action by reason (v1.6.1, external-reviewer F3 correction):**
 
@@ -1260,7 +1266,8 @@ the number of DELIVERIES of the logical message (`msg_id`). Rules:
   (`msg_model-d_...`) to guarantee uniqueness without coordination (model-d
   adjustment, R3). Serves as idempotency key, event_id and file reference.
 - `run_id`: current activity (e.g. `MEJORA-V16-R1`) for correlation.
-- `token`: what the advisor must return signed (`TOKEN:...:ID:MODEL`).
+- `token`: correlation value the advisor returns in its JSON ACK/NACK
+  (`cross.ps1 ack --token ...`); never hand-written on the wire.
 - `requiere_ack`: `true` in critical tasks; `false` in simple tasks
   (rule 7.4).
 - `lease`: owner + UTC deadline + **explicit successor** (not just owner and
@@ -1271,12 +1278,11 @@ the number of DELIVERIES of the logical message (`msg_id`). Rules:
 > `msg_id` (retransmit or reconcile the logical message). Do not mix them:
 > sending `sigue` is not retransmitting, and retransmitting without context does not resume.
 
-> **ENVELOPE-V2 (v1.9.0, Fase 1):** since v1.9.0 the engine adds a second,
-> structured line to the message body -- `ENVELOPE-V2: {json}` (v2 envelope,
-> see `cross/modules/cross-envelope.psm1`). The v1 envelope above is
-> UNCHANGED and remains the canonical format; v2 is an additional, validated
-> representation (`v=2`, `type` in {message,ack,nack}). `Parse-CrossEnvelope`
-> is the only parser (v1 removed in v1.17). Fase 3 complete.
+> **ENVELOPE-V2 (current, since v2.0):** the ONLY wire format is
+> `ENVELOPE-V2: {json}` or pure JSON (see `cross/modules/cross-envelope.psm1`),
+> with `v=2` and `type` in {message,ack,nack}. `Parse-CrossEnvelope` is the only
+> parser; the v1 free-text envelope described above is legacy/historical and is
+> rejected on the wire since v2.0.
 
 ### 12.2 Durable outbox (BEFORE sending)
 
@@ -1307,10 +1313,10 @@ guess from the chat. Survives restarts.
 ### 12.3 ACK at turn boundary (requiere_ack=true)
 
 Upon waking up and processing a message with `requiere_ack=true`, the advisor first
-replies with the full format from section 7.1:
-`ACK:<received_token>:<ADVISOR_ID>:<MODEL>`. The ACK means "received and
-starting to process", not "finished" (model-d R3 adjustment). It is asynchronous and non-
-blocking: the advisor continues working after issuing it.
+posts the v2 ACK envelope from section 7.1 (`cross.ps1 ack --token ...
+--for-msg-id ... --to ...`). The ACK means "received and starting to process",
+not "finished" (model-d R3 adjustment). It is asynchronous and non-blocking: the
+advisor continues working after issuing it.
 
 If the leader does not receive the ACK within **120s** (model-d R3 adjustment; 60s was insufficient
 for tasks with prior research like reading news and writing vision),
@@ -1621,15 +1627,15 @@ Implemented in `cross/modules/cross-action.psm1` (2026-08-13). They complement t
 READ layer of 12.14 with the actions the leader executes per 7.5 and
 12.10/12.11: they DO mutate outbox, escalated, DLQ and audit. Commands:
 
-- **`cross ack --token T --for-msg-id X [--to ses_Y] [--model M]`:** emits
-  `ACK:<token>:<SENDER_ID>[:<MODEL>]` (3-4 segments, 7.1) to the destination and
-  logs `ACK|ENVIADO` in `audit_log.md`. `--to` defaults to my session.
+- **`cross ack --token T --for-msg-id X [--to ses_SENDER] [--model M]`:** emits
+  the v2 JSON ACK (7.1) to the sender's session and logs `ACK|ENVIADO` in
+  `audit_log.md`. `--to` defaults to my session (pass the sender!). The endpoint
+  (port/password) is auto-resolved when `--port` is omitted (v2.1.1); a failure
+  returns `SEND_FAILED` instead of a silent no-op.
 - **`cross nack --token T --for-msg-id X --reason R [--note] [--for-run-id R]
-  [--to] [--model]`:** emits `NACK:<token>:<id>[:model]:<reason>` (4-5 segments,
-  7.5) with closed reasons. The enriched format
-  (`NACK:...:<msg_id>:<run_id>`, 7 segments) ONLY travels on the wire when
-  `--for-run-id` is passed: `msg_id` and `run_id` go together, and the parser distinguishes
-  the enriched (6 fields after `NACK:`) from the generic. The audit stores the reason.
+  [--to] [--model]`:** emits the v2 JSON NACK (7.5) with closed reasons.
+  `msg_id`/`run_id` travel inside the JSON; no segment counting. The audit stores
+  the reason.
 - **`cross resume --to ses_X --task-id TX [--from] [--text]`:** implements the
   RESUME from 12.10 (sec 6.1c). Sends `prompt_async` to the same session with
   continuation instruction; does NOT create new `msg_id`, does NOT touch the outbox, does NOT
