@@ -235,7 +235,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File T-send.ps1
 | `wait-idle` / `verify` not found | CLI built before Fase 2 | Upgrade to `v2.2.0` (`master`); see `CHANGELOG.md` |
 | `fixture-clean` leaves `.test-backup` / `.bak` files | Crash or interrupted test | Remove `cross/*.test-backup` / `*.bak` manually; `fixture-clean` restores on exit |
 
-> **Versions:** `v2.0.0` (exclusive ENVELOPE-V2), `v2.1.1` (install/ACK/cwd fixes), `v2.2.0` (Fase 2: `wait-idle`, `verify`/HMAC, `fixture-clean`). Full protocol rules in `CROSS_TALK.md`.
+> **Compatible v1 + v2 (v2.2.0, Fase 2).** El repo extiende `opencode-crosstalk` local sin deprecar V1.
+> `v2.0.0` = ENVELOPE-V2 exclusivo; `v2.1.1` = install/ACK/cwd; `v2.2.0` = `wait-idle`/`verify`/HMAC/`fixture-clean`.
 
 If a session appears frozen after a provider error, check `cross diagnose --msg X`
 and the OpenCode logs; the anti-sleep protocol (`sigue`/RESUME) is described in

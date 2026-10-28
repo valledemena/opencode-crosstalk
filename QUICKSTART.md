@@ -1,5 +1,11 @@
 # OpenCode Cross-Talk - Quick Start (v2.2.0, Fase 2)
 
+> **Compatible con v1 y v2.** El repo mantiene compatibilidad sin deprecar v1
+> (Fase 1: extender local, no upstream). `v2.0.0` introdujo ENVELOPE-V2 exclusivo
+> como wire format; `v2.2.0` añade `wait-idle` y HMAC (`sig`). Los mensajes v1
+> (`ACK:`, `TOKEN:`) siguen disponibles a través del código histórico, pero
+> el CLI `cross.ps1` solo emite v2.
+
 Verifiable messaging between OpenCode sessions (outbox + ACK/NACK + DLQ + HMAC + wait-idle).
 
 > **v2 wire format:** only `ENVELOPE-V2` JSON (`ENVELOPE-V2: {json}` or pure

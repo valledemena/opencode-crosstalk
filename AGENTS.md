@@ -9,7 +9,9 @@ anything else. Follow it top to bottom.
 Durable, verifiable messaging between OpenCode sessions: an outbox with ACK/NACK
 handshakes, retries, idempotency and a dead-letter queue. The CLI is
 `cross/cross.ps1`. Wire format is **ENVELOPE-V2 JSON only** (v1 free-text
-`ACK:`/`NACK:`/`TOKEN:` lines are rejected). Full spec: `CROSS_TALK.md`.
+`ACK:`/`NACK:`/`TOKEN:` lines are rejected on the wire since v2.0, but the codebase keeps v1 compatibility in historical sections). Full spec: `CROSS_TALK.md`.
+
+> **Compatible v1 + v2:** this repo extends `opencode-crosstalk` locally (Fase 2: `wait-idle`, HMAC `sig`) without deprecating upstream V1 (`valledemena/opencode-crosstalk-v2`). `v2.0.0` made ENVELOPE-V2 exclusive; `v2.2.0` adds Fase 2.
 
 ## Step 1 - Identify yourself
 
