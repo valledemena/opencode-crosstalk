@@ -5,6 +5,8 @@ Import-Module (Join-Path $PSScriptRoot '..\modules\cross-action.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\modules\cross-envelope.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\modules\cross-transport.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\modules\cross-delivery.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'fixture-clean.psm1') -Force -DisableNameChecking
+Start-CleanFixture
 
 $pass = 0; $fail = 0
 function Assert-True {
@@ -92,5 +94,7 @@ Assert-True ($audit -match 'nack reason=CAPACITY') 'audit with reason' $audit
 Assert-True ($audit -match 'msg=msg_x') 'audit with msg_id' $audit
 
 Write-Host ""
+Stop-CleanFixture
+
 Write-Host ("RESULT: {0} pass, {1} fail" -f $pass, $fail)
 if ($fail -gt 0) { exit 1 } else { exit 0 }
