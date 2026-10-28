@@ -98,6 +98,24 @@ function Expand-Path {
 function Get-CrossPassword {
     $pw = [Environment]::GetEnvironmentVariable('OPENCODE_SERVER_PASSWORD')
     if ($pw) { return @{ value = $pw; source = 'env' } }
+    # Fase 1 (2026-10-28): OpenCode V2 servers rotate the password on each start
+    # and persist it in ~/.config/opencode/service.json. That file is written by
+    # the live server itself, so it outranks the (often stale) .env copy.
+    $homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { '' }
+    if ($homeDir) {
+        $svcFile = Join-Path (Join-Path (Join-Path $homeDir '.config') 'opencode') 'service.json'
+        if (Test-Path -LiteralPath $svcFile) {
+            try {
+                $svc = Get-Content -LiteralPath $svcFile -Raw | ConvertFrom-Json
+                $p = $svc.PSObject.Properties['password']
+                if ($p -and $p.Value) { return @{ value = [string]$p.Value; source = 'service.json' } }
+            } catch {
+                Write-CrossDiag -Level debug -Message "Get-CrossPassword: service.json ilegible: $_"
+            }
+        } else {
+            Write-CrossDiag -Level debug -Message 'Get-CrossPassword: service.json no presente (server V1?)'
+        }
+    }
     $envFile = Expand-Path $script:EnvFile
     if (Test-Path -LiteralPath $envFile) {
         foreach ($line in (Get-Content -LiteralPath $envFile)) {
@@ -314,6 +332,44 @@ function Get-CrossPortByScan {
     return $null
 }
 
+# Fase 1 (2026-10-28): OpenCode V2 desktop builds may pick a port OUTSIDE the
+# configured scan range (e.g. 28894 with port_scan_range 30000-40000) and the
+# log scraper is deprecated. Before brute-force scanning, probe the actual
+# local TCP listeners on 127.0.0.1 that answer the health probe.
+function Get-CrossPortFromListeners {
+    $ports = New-Object System.Collections.ArrayList
+    try {
+        $conns = Get-NetTCPConnection -State Listen -ErrorAction Stop |
+            Where-Object { $_.LocalAddress -eq '127.0.0.1' }
+        foreach ($c in $conns) { [void]$ports.Add([int]$c.LocalPort) }
+    } catch {
+        # fallback: netstat parse (CIM unavailable / older environments)
+        $lines = & netstat -ano -p tcp 2>$null
+        foreach ($l in $lines) {
+            if ($l -match '^\s*TCP\s+127\.0\.0\.1:(\d+)\s+\S+\s+LISTENING') {
+                [void]$ports.Add([int]$Matches[1])
+            }
+        }
+    }
+    $ports = @($ports | Sort-Object -Unique)
+    if (-not $ports) { return $null }
+    $pw = Get-CrossPassword
+    if (-not $pw) {
+        Write-CrossDiag -Level debug -Message 'listeners: no password, cannot verify candidates'
+        return $null
+    }
+    foreach ($p in $ports) {
+        try {
+            $h = Test-CrossHealthRaw -Port $p -Password $pw.value
+            if ($h.healthy) {
+                Write-CrossDiag -Level debug -Message "listeners: health OK on 127.0.0.1:$p"
+                return $p
+            }
+        } catch { }
+    }
+    return $null
+}
+
 # D2 (v1.17): structured session state via API (GET /session/:id).
 # Returns ok/status/last_activity_at/model/checkable. Mockable via SessionFn.
 function Get-CrossSessionState {
@@ -357,6 +413,81 @@ function Get-CrossSessionState {
         checkable = $true
     }
 }
+
+# Fase 1 (2026-10-28): normalize the message-list shape across API versions.
+# V2 shape: {"data":[{id, time:{created(ms)}, type, text?, content?[{type,text}]}, ...], "cursor": ...}
+#           (default order newest-first; user text is a flat "text" field;
+#           assistant text lives in content[] with type "text").
+# V1 shape: [ {info:{id, role, time:{created(ISO)}}, parts:[{type:'text',text}]}, ... ] (oldest-first)
+# Returns a uniform @({id, role, time(ISO), text}) list, oldest-first.
+function ConvertFrom-CrossMessageList {
+    param([object]$Body)
+    if ($null -eq $Body) { return @() }
+    if ($Body -is [string]) { $Body = $Body | ConvertFrom-Json }  # Invoke-CrossApi returns raw JSON
+    $items = @()
+    $isV2 = $false
+    if ($Body -is [array]) {
+        $items = @($Body)
+    } else {
+        $d = $Body.PSObject.Properties['data']
+        if ($d -and $d.Value) { $items = @($d.Value); $isV2 = $true } else { return @() }
+    }
+    $out = New-Object System.Collections.ArrayList
+    foreach ($m in $items) {
+        if ($null -eq $m) { continue }
+        $id = ''; $role = ''; $time = ''
+        $texts = New-Object System.Collections.ArrayList
+        if ($isV2) {
+            $p = $m.PSObject.Properties['id']; if ($p) { $id = [string]$p.Value }
+            $p = $m.PSObject.Properties['type']; if ($p) { $role = [string]$p.Value }
+            $p = $m.PSObject.Properties['time']
+            if ($p -and $p.Value) {
+                $pc = $p.Value.PSObject.Properties['created']
+                if ($pc -and $pc.Value) {
+                    $tv = "$($pc.Value)"
+                    if ($tv -match '^\d+$') {
+                        # V2 epoch ms -> ISO 8601 UTC (keeps --since filters meaningful)
+                        $time = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$tv).UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+                    } else { $time = $tv }
+                }
+            }
+            $p = $m.PSObject.Properties['text']; if ($p -and $p.Value) { [void]$texts.Add([string]$p.Value) }
+            $p = $m.PSObject.Properties['content']
+            if ($p -and $p.Value) {
+                foreach ($c in @($p.Value)) {
+                    if (-not $c) { continue }
+                    $ct = $c.PSObject.Properties['type']
+                    if (-not $ct -or [string]$ct.Value -ne 'text') { continue }
+                    $cx = $c.PSObject.Properties['text']; if ($cx) { [void]$texts.Add([string]$cx.Value) }
+                }
+            }
+        } else {
+            $pInfo = $m.PSObject.Properties['info']
+            if ($pInfo -and $pInfo.Value) {
+                $iv = $pInfo.Value
+                $p = $iv.PSObject.Properties['id']; if ($p) { $id = [string]$p.Value }
+                $p = $iv.PSObject.Properties['role']; if ($p) { $role = [string]$p.Value }
+                $p = $iv.PSObject.Properties['time']
+                if ($p -and $p.Value) {
+                    $pc = $p.Value.PSObject.Properties['created']; if ($pc) { $time = [string]$pc.Value }
+                }
+            }
+            $p = $m.PSObject.Properties['parts']
+            if ($p -and $p.Value) {
+                foreach ($part in @($p.Value)) {
+                    if (-not $part) { continue }
+                    $pt = $part.PSObject.Properties['type']
+                    if (-not $pt -or [string]$pt.Value -ne 'text') { continue }
+                    $tx = $part.PSObject.Properties['text']; if ($tx) { [void]$texts.Add([string]$tx.Value) }
+                }
+            }
+        }
+        [void]$out.Add(@{ id = $id; role = $role; time = $time; text = ($texts -join "`n") })
+    }
+    if ($isV2) { return @($out | Sort-Object -Property { $_.time }) }  # restore oldest-first
+    return @($out)
+}
+
 function Resolve-CrossEndpoint {
     param(
         [int]$Port = 0,
@@ -447,6 +578,15 @@ function Resolve-CrossEndpoint {
         Write-CrossDiag -Level debug -Message 'log: no port detected (regex did not match or dir missing)'
     }
 
+    # Fase 1: probe real local listeners before brute-force port scanning
+    $listener = Get-CrossPortFromListeners
+    if ($listener) {
+        $detectionMethod = 'listeners'
+        Write-CrossPortCache -Port $listener -PasswordHash $pwHash
+        $watch.Stop()
+        return @{ ok = $true; code = 0; port = $listener; password = $Password; password_source = $passwordSource; detection_method = $detectionMethod; source = $detectionMethod; degraded = $true; duration_ms = [math]::Round($watch.Elapsed.TotalMilliseconds) }
+    }
+
     $scanTimeoutMs = $config.port_scan_timeout_ms
     if (-not $scanTimeoutMs) { $scanTimeoutMs = 30000 }
     Write-CrossDiag -Level debug -Message "iniciando scan [$($config.port_scan_range[0])-$($config.port_scan_range[1])] ScanTimeoutMs=$scanTimeoutMs"
@@ -505,4 +645,4 @@ function Invoke-CrossApi {
     return @{ status = [int]$code; body = $body }
 }
 
-Export-ModuleMember -Function Import-CrossConfig, Get-CrossConfig, Get-CrossCurlCommand, Get-CrossPassword, Get-PasswordHash, Get-CrossNetrcFile, Test-CrossHealthRaw, Resolve-CrossEndpoint, Invoke-CrossApi, Get-CrossPortFromCache, Write-CrossPortCache, Get-CrossPortFromLog, Get-CrossPortByScan, Get-CrossPortWellKnown, Write-CrossPortWellKnown, Write-CrossDiag, Get-CrossSessionState
+Export-ModuleMember -Function Import-CrossConfig, Get-CrossConfig, Get-CrossCurlCommand, Get-CrossPassword, Get-PasswordHash, Get-CrossNetrcFile, Test-CrossHealthRaw, Resolve-CrossEndpoint, Invoke-CrossApi, Get-CrossPortFromCache, Write-CrossPortCache, Get-CrossPortFromLog, Get-CrossPortByScan, Get-CrossPortWellKnown, Write-CrossPortWellKnown, Write-CrossDiag, Get-CrossSessionState, Get-CrossPortFromListeners, ConvertFrom-CrossMessageList

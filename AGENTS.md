@@ -54,6 +54,8 @@ If AUTH_FAILED: the password lives in the `OPENCODE_SERVER_PASSWORD` env var or
 
 ```powershell
 .\cross.ps1 send --msg msg_001 --dest ses_PEER_ID --token T1 --text "your task text"
+# Optional: --delivery steer|queue. Default queue: a busy peer takes the message
+# when idle (never derails a turn in progress); steer shows it mid-turn.
 ```
 
 - If `--dest` and `--text` are given with a new `--msg`, the outbox entry is
@@ -81,9 +83,11 @@ If AUTH_FAILED: the password lives in the `OPENCODE_SERVER_PASSWORD` env var or
    - `ALREADY_CLAIMED_BY_OTHER` -> do nothing; another session owns it.
 3. Do the task. Write shared artifacts to `whiteboard/` as agreed.
 4. **Close it**: `.\cross.ps1 done --msg msg_X`
-5. **Reply to the sender** via the API (typically POST to
-   `/session/<their-id>/prompt_async`) and sign with the SAME token. Prefer the
-   CLI (`send`/`ack`) over hand-built curl: it emits valid v2 JSON.
+5. **Reply to the sender** via the V2 prompt API
+   (`POST /api/session/<their-id>/prompt`, body `{"text":"..."}`) and sign with
+   the SAME token. Prefer the CLI (`send`/`ack`) over hand-built curl: it emits
+   valid ENVELOPE-V2 JSON with the V2 endpoint and body (`prompt_async` and
+   `{"parts":[...]}` are V1-only and must not be used).
 6. If you cannot or should not do it, reject explicitly:
    `.\cross.ps1 nack --token <token> --for-msg-id msg_X --reason CAPACITY --to <sender>`
    Closed reasons: CAPACITY | TOOL_MISSING | AMBIGUOUS_TASK | PROVIDER_DOWN | OTHER.

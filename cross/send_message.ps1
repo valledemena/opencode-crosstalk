@@ -26,13 +26,14 @@ if ($LegacyMode) {
     if (-not $Puerto) { throw 'Could not auto-detect server port' }
     $Password = $env:OPENCODE_SERVER_PASSWORD
     if (-not $Password) { throw 'OPENCODE_SERVER_PASSWORD is not defined in the environment' }
-    $payload = @{ parts = @(@{ type = 'text'; text = $Texto }) }
-    if ($NoReply) { $payload.noReply = $true }
+    # V2 contract: prompt = {"text": ...} (wakes the agent); -NoReply uses the
+    # synthetic endpoint (notice without wake-up). V1 'message'+noReply is gone.
+    $payload = @{ text = $Texto }
     $json = $payload | ConvertTo-Json -Depth 4
     $file = Join-Path $env:TEMP "send_$(Get-Random).json"
     [System.IO.File]::WriteAllText($file, $json, [System.Text.Encoding]::ASCII)
-    $endpoint = if ($NoReply) { 'message' } else { 'prompt' }
-    curl.exe -s -X POST -u "opencode:$Password" -H 'Content-Type: application/json' --data-binary "@$file" "http://127.0.0.1:$Puerto/session/$Destino/$endpoint"
+    $endpoint = if ($NoReply) { 'synthetic' } else { 'prompt' }
+    curl.exe -s -X POST -u "opencode:$Password" -H 'Content-Type: application/json' --data-binary "@$file" "http://127.0.0.1:$Puerto/api/session/$Destino/$endpoint"
     Remove-Item $file -ErrorAction SilentlyContinue
     exit 0
 }

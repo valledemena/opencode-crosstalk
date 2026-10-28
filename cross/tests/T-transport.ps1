@@ -51,7 +51,7 @@ Write-Host "== T-transport: password =="
 $pw = Get-CrossPassword
 if ($pw) {
     Assert-True ($pw.value.Length -gt 0) 'password obtained' 'empty'
-    Assert-True ($pw.source -in @('env','env_file')) 'password.source valid' $pw.source
+    Assert-True ($pw.source -in @('env','env_file','service.json')) 'password.source valid' $pw.source
 } else {
     Assert-True $false 'password obtained' 'no env nor .env'
 }
@@ -63,7 +63,7 @@ $ep = Resolve-CrossEndpoint -NoCache
 Assert-True ($ep.ok) 'Resolve-CrossEndpoint ok' ($ep.err)
 if ($ep.ok) {
     Assert-True ($ep.port -gt 0) 'port > 0' $ep.port
-    Assert-True ($ep.password_source -in @('env','env_file','override')) 'password_source valid' $ep.password_source
+    Assert-True ($ep.password_source -in @('env','env_file','service.json','override')) 'password_source valid' $ep.password_source
     $h = Test-CrossHealthRaw -Port $ep.port -Password $ep.password
     Assert-True ($h.status -eq 200) 'health HTTP 200' $h.status
     Assert-True ($h.healthy) 'health healthy=true' $h.healthy

@@ -46,12 +46,11 @@ function Test-SessionGrowing {
     function Read-SessionFingerprint([string]$sid, [int]$p, [string]$pw) {
         $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$sid/message?limit=$Limit" -Port $p -Password $pw -TimeoutSec 8
         if ($api.status -ne 200) { return $null }
-        $msgs = $api.body | ConvertFrom-Json
+        # V2 {"data":[...]} / V1 [ ... ] normalized (id/role/time/text)
+        $msgs = ConvertFrom-CrossMessageList -Body $api.body
         $parts = @()
         foreach ($m in $msgs) {
-            foreach ($t in ($m.parts | Where-Object { $_.type -eq 'text' } | ForEach-Object { $_.text })) {
-                $parts += $m.info.id + ':' + $t
-            }
+            if ($m.text) { $parts += $m.id + ':' + $m.text }
         }
         return ($parts -join '|')
     }
@@ -101,6 +100,7 @@ function New-CrossDelivery {
         [string]$Token = '',
         [string]$Lease = '',
         [string]$Sucesor = '',
+        [string]$Delivery = '',
         [bool]$RequiereAck = $true,
         [string]$OutboxPath = '',
         [int]$AckTimeoutSec = 120,
@@ -125,6 +125,15 @@ function New-CrossDelivery {
     if ($AckTimeoutSec -le 0) { $AckTimeoutSec = 120 }
     if ($MaxTotalWaitSec -le 0) { $MaxTotalWaitSec = 600 }   # F5: hard total cap
 
+    # V2 prompt admission ('delivery'): 'queue' holds the prompt until the busy
+    # destination goes idle; 'steer' delivers it at the destination's next step
+    # boundary (visible mid-turn). Default 'queue': a task handoff must not
+    # derail a turn already in progress (OpenAPI V2 enum: steer|queue).
+    $deliveryMode = if ($Delivery) { $Delivery.ToLowerInvariant() } else { 'queue' }
+    if ($deliveryMode -ne 'steer' -and $deliveryMode -ne 'queue') {
+        return @{ ok = $false; err = 'USAGE_ERROR'; detail = "invalid --delivery '$Delivery' (use steer|queue)"; state = 'ERROR'; http_status = 0; attempt = $InitialAttempt }
+    }
+
     $port = $Port
     $password = $Password
     if (-not $SendFn -and -not $ReadFn -and -not $GrowingFn) {
@@ -138,7 +147,10 @@ function New-CrossDelivery {
 
     function Do-Send([string]$sessionId, [string]$body) {
         if ($SendFn) { return @(& $SendFn $sessionId $body) }
-        $payload = @{ parts = @(@{ type = 'text'; text = $body }) } | ConvertTo-Json -Depth 4
+        # V2 contract (OpenAPI): body is {"text": ...} (+ optional "delivery").
+        # The legacy V1 shape {"parts":[...]} is tolerated by the server but is
+        # NOT the schema-valid form -- do not regress.
+        $payload = @{ text = $body; delivery = $deliveryMode } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$sessionId/prompt" -BodyJson $payload -Port $port -Password $password
         return @{ status = $api.status; body = $api.body }
     }
@@ -146,13 +158,12 @@ function New-CrossDelivery {
         if ($ReadFn) { return @(& $ReadFn $MySessionId) }
         $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$MySessionId/message?limit=30" -Port $port -Password $password -TimeoutSec 8
         if ($api.status -ne 200) { return @() }
-        $msgs = $api.body | ConvertFrom-Json
+        # V2 {"data":[...]} (type/text/content) / V1 [ ... ] (info/parts) normalized
+        $msgs = ConvertFrom-CrossMessageList -Body $api.body
         $out = @()
         foreach ($m in $msgs) {
-            if ($m.info.role -ne 'user') { continue }
-            foreach ($t in ($m.parts | Where-Object { $_.type -eq 'text' } | ForEach-Object { $_.text })) {
-                $out += @{ role = 'user'; text = $t; id = $m.info.id }
-            }
+            if ($m.role -ne 'user') { continue }
+            $out += @{ role = 'user'; text = $m.text; id = $m.id }
         }
         return @($out)
     }

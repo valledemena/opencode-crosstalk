@@ -76,7 +76,8 @@ function Send-CrossAck {
         if (-not $Port) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = 'endpoint unresolved (no port)'; ack_text = $ackText }
         }
-        $payload = @{ parts = @(@{ type = 'text'; text = $ackText }) } | ConvertTo-Json -Depth 4
+        # V2 body (steer: control message, must be seen even mid-turn)
+        $payload = @{ text = $ackText; delivery = 'steer' } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$Dest/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status; ack_text = $ackText }
@@ -127,7 +128,8 @@ function Send-CrossNack {
         if (-not $Port) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = 'endpoint unresolved (no port)'; nack_text = $nackText }
         }
-        $payload = @{ parts = @(@{ type = 'text'; text = $nackText }) } | ConvertTo-Json -Depth 4
+        # V2 body (steer: control message, must be seen even mid-turn)
+        $payload = @{ text = $nackText; delivery = 'steer' } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$Dest/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status; nack_text = $nackText }
@@ -163,7 +165,7 @@ function Send-CrossResume {
         [void](& $SendFn $To $Text)
         $sent = $true
     } elseif ($Port) {
-        $payload = @{ parts = @(@{ type = 'text'; text = $Text }) } | ConvertTo-Json -Depth 4
+        $payload = @{ text = $Text; delivery = 'queue' } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$To/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status }
@@ -213,7 +215,7 @@ function Restart-CrossTask {
         [void](& $SendFn $dest $Text)
         $sent = $true
     } elseif ($Port) {
-        $payload = @{ parts = @(@{ type = 'text'; text = $Text }) } | ConvertTo-Json -Depth 4
+        $payload = @{ text = $Text; delivery = 'queue' } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$dest/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status }
@@ -243,7 +245,8 @@ function Send-CrossNudge {
         [void](& $SendFn $To $text)
         $sent = $true
     } elseif ($Port) {
-        $payload = @{ parts = @(@{ type = 'text'; text = $text }) } | ConvertTo-Json -Depth 4
+        # V2 body (steer: control message, must be seen even mid-turn)
+        $payload = @{ text = $text; delivery = 'steer' } | ConvertTo-Json -Depth 4
         $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$To/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status }
@@ -286,7 +289,8 @@ function Write-CrossEscalated {
             [void](& $SendFn $To $wake)
             $notified = $true
         } elseif ($Port) {
-            $payload = @{ parts = @(@{ type = 'text'; text = $wake }) } | ConvertTo-Json -Depth 4
+            # V2 body (steer: wake-up control message)
+            $payload = @{ text = $wake; delivery = 'steer' } | ConvertTo-Json -Depth 4
             [void](Invoke-CrossApi -Method 'POST' -Path "/api/session/$To/prompt" -BodyJson $payload -Port $Port -Password $Password)
             $notified = $true
         }

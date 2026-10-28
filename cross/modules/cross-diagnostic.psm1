@@ -479,7 +479,8 @@ function Get-CrossAvisoSpof {
                     [void](& $NotifyFn $e.dest $e.msg_id)
                 } elseif ($Port) {
                     $body = "AVISO-SPOF | there is a fallen message for $($e.dest) | msg_id=$($e.msg_id) | from=$MySessionId"
-                    $payload = @{ parts = @(@{ type = 'text'; text = $body }) } | ConvertTo-Json -Depth 4
+                    # V2 body (steer: SPOF wake-up notice)
+                    $payload = @{ text = $body; delivery = 'steer' } | ConvertTo-Json -Depth 4
                     [void](Invoke-CrossApi -Method 'POST' -Path "/api/session/$targetSession/prompt" -BodyJson $payload -Port $Port -Password $Password)
                 }
                 [void]$notified.Add($e.msg_id)

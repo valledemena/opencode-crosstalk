@@ -40,7 +40,7 @@ $argsList = @($Argv)
 
 $flags = [ordered]@{}
 $positionals = New-Object System.Collections.ArrayList
-$KnownFlags = @('json','human','quiet','no-cache','health-skip','port','password','config','help','directory','session','session-id','since','role','limit','get','set','list','msg','model','owner','force','state-file','outbox-file','text','dest','token','run-id','lease','sucesor','attempt','ack-timeout','max-attempts','no-wait','timeout','apply','quarantine','retry-auto','for','interval','check-file','expected-token','msg-id','agent','reason','note','for-msg-id','for-run-id','task','task-id','from','retries','flag','summary','check-log','minutes','to','log-path','by-agent','until','dry-run-sweep','prometheus','prometheus-output')
+$KnownFlags = @('json','human','quiet','no-cache','health-skip','port','password','config','help','directory','session','session-id','since','role','limit','get','set','list','msg','model','owner','force','state-file','outbox-file','text','dest','delivery','token','run-id','lease','sucesor','attempt','ack-timeout','max-attempts','no-wait','timeout','apply','quarantine','retry-auto','for','interval','check-file','expected-token','msg-id','agent','reason','note','for-msg-id','for-run-id','task','task-id','from','retries','flag','summary','check-log','minutes','to','log-path','by-agent','until','dry-run-sweep','prometheus','prometheus-output')
 
 for ($i = 0; $i -lt $argsList.Count; $i++) {
     $arg = $argsList[$i]
@@ -58,13 +58,13 @@ for ($i = 0; $i -lt $argsList.Count; $i++) {
         '^--config$' { $i++; $ConfigPath = $argsList[$i]; break }
         '^--help$' { $Help = $true; break }
         '^-h$' { $Help = $true; break }
-        '^--(directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output)$' {
+        '^--(delivery|directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output)$' {
             $name = $Matches[1]
             if (($i + 1) -lt $argsList.Count) { $i++; $flags[$name] = $argsList[$i] }
             else { $flags[$name] = $true }
             break
         }
-        '^--(directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output)=(.+)$' {
+        '^--(delivery|directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output)=(.+)$' {
             $name = $Matches[1]
             $flags[$name] = $Matches[2]
             break
@@ -102,7 +102,7 @@ Usage:
   cross validate  [--state-file PATH] [--outbox-file PATH]
   cross send      --msg msg_X --dest ses_Y --text "..." [--token T] [--run-id R]
                   [--ack-timeout S | --timeout S] [--max-attempts N] [--attempt N]
-                  [--no-wait] [--dry-run-sweep] [--outbox-file PATH]
+                  [--delivery steer|queue] [--no-wait] [--dry-run-sweep] [--outbox-file PATH]
   cross scan      [--outbox-file PATH] [--apply] [--quarantine]
                   [--retry-auto [--max-attempts N]]
   cross poll      --msg msg_X [--timeout S] [--interval MS] [--outbox-file PATH]
@@ -137,6 +137,9 @@ send delivers a message via prompt and waits for a v2 JSON ACK/NACK (retries, le
   --token defaults to the msg id so the receiver can ACK with a stable token.
   --no-wait sends without waiting for ACK (fire-and-forget, outbox remains IN_FLIGHT).
   --ack-timeout 0 equals no ACK (requires_ack=false, outbox CONFIRMED); use --no-wait for the opposite.
+  --delivery queue (default): a busy destination takes the message when idle (never derails
+  a turn in progress). --delivery steer: a busy destination sees it at its next step
+  boundary (may arrive mid-turn). Idle destinations start a turn either way (OpenAPI V2).
   NOTE: send ALWAYS runs an automatic sweep first (Invoke-CrossAutoSweep) that marks
   other expired outbox entries as EXPIRADO (reported as swept_expired/swept_count).
   Use --dry-run-sweep to preview what would be swept without mutating anything.
@@ -283,18 +286,17 @@ switch ($Command) {
             $r = New-Result -Ok $false -Code $code -Data @{ err = $errName; detail = "GET message -> HTTP $($api.status)"; http_status = $api.status } -Cmd 'read'
             Out-Result $r 'read' -Watch $watch
         }
-        $all = $api.body | ConvertFrom-Json
+        $all = $api.body
         $limit = 20; if ($flags['limit']) { $limit = [int]$flags['limit'] }
         $since = ''; if ($flags['since']) { $since = [string]$flags['since'] }
         $roleFilter = ''; if ($flags['role']) { $roleFilter = [string]$flags['role'] }
+        # V2 shape {"data":[...]} (type/text/content) / V1 array (info/parts),
+        # normalized to id/role/time(ISO)/text, oldest-first.
         $msgs = @()
-        foreach ($m in $all) {
-            $role = $m.info.role
-            if ($roleFilter -and $role -and ($role.ToLower() -ne $roleFilter.ToLower())) { continue }
-            $t = $m.info.time.created
-            if ($since -and $t -and $t -lt $since) { continue }
-            $text = ($m.parts | Where-Object { $_.type -eq 'text' } | ForEach-Object { $_.text }) -join "`n"
-            $msgs += @{ id = $m.info.id; role = $role; time = $t; text = $text }
+        foreach ($m in (ConvertFrom-CrossMessageList -Body $all)) {
+            if ($roleFilter -and $m.role -and ($m.role.ToLower() -ne $roleFilter.ToLower())) { continue }
+            if ($since -and $m.time -and $m.time -lt $since) { continue }
+            $msgs += @{ id = $m.id; role = $m.role; time = $m.time; text = $m.text }
         }
         if ($msgs.Count -gt $limit) { $msgs = @($msgs | Select-Object -Last $limit) }
         $r = New-Result -Ok $true -Code 0 -Data @{ session = $session; count = $msgs.Count; messages = @($msgs) } -Cmd 'read'
@@ -545,8 +547,9 @@ switch ($Command) {
         $maxAttempts = if ($flags['max-attempts']) { [int]$flags['max-attempts'] } else { [int]$config.max_retries }
         $attempt = if ($flags['attempt']) { [int]$flags['attempt'] } else { if ($entry) { [int]$entry.attempt } else { 0 } }
         $backoffSec = if ($config.retry_backoff_s) { [int]$config.retry_backoff_s } else { 2 }
+        $delivery = if ($flags['delivery']) { [string]$flags['delivery'] } else { '' }
         $sweep = Invoke-CrossAutoSweep -Path $outboxFile -ExcludeMsgId $msg -LeaseMinutes $config.default_lease_minutes -DryRun:([bool]$flags['dry-run-sweep'])
-        $res = New-CrossDelivery -MsgId $msg -Dest $dest -Text $text -RunId $runId -Token $token -Lease $lease -Sucesor $sucesor -RequiereAck:$reqAck -OutboxPath $outboxFile -AckTimeoutSec $ackTimeout -MaxAttempts $maxAttempts -InitialAttempt $attempt -BackoffSec $backoffSec -NoWait:([bool]$flags['no-wait']) -Port $PortArg -Password $PasswordArg -NoCache:$NoCache -HealthSkip:$HealthSkip
+        $res = New-CrossDelivery -MsgId $msg -Dest $dest -Text $text -RunId $runId -Token $token -Lease $lease -Sucesor $sucesor -Delivery $delivery -RequiereAck:$reqAck -OutboxPath $outboxFile -AckTimeoutSec $ackTimeout -MaxAttempts $maxAttempts -InitialAttempt $attempt -BackoffSec $backoffSec -NoWait:([bool]$flags['no-wait']) -Port $PortArg -Password $PasswordArg -NoCache:$NoCache -HealthSkip:$HealthSkip
         $warnings = @()
         if ($res.ack -and $res.ack_id -and $dest -and ([string]$res.ack_id -ne [string]$dest)) {
             $warnings += 'ACK_EMITTER_MISMATCH: ACK emitter differs from destination. Shared cross.config.local.json? Set CROSS_MY_MY_SESSION_ID/CROSS_MY_MY_MODEL on the receiver.'

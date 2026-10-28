@@ -11,6 +11,23 @@ with other open chats/sessions in the same project.
 > shows `TOKEN:`/`ACK-PROTOCOLO:` lines is historical context only: the CLI is
 > the authoritative reference (`cross.ps1 --help`).
 >
+> **TRANSPORT UPDATE (2026-10-28, OpenCode V2 server API):** the CLI code now
+> speaks the V2 API. Authoritative endpoints and bodies:
+> - Send/wake: `POST /api/session/{id}/prompt`, body `{"text":"..."}` plus
+>   optional `"delivery":"steer"|"queue"` (returns `HTTP 200`). `queue`
+>   (default) holds the message until a busy destination is idle; `steer`
+>   delivers it at the destination's next step boundary. There is NO
+>   `prompt_async`, NO `noReply` and NO `{"parts":[...]}` body anymore (V1
+>   concepts -- the server only tolerates them for now).
+> - Notice without wake-up: `POST /api/session/{id}/synthetic`, body
+>   `{"text":"..."}` (replaces V1 `POST /session/:id/message` + `noReply`).
+> - Read: `GET /api/session/{id}/message?limit=N`.
+> - Wait for idle: `POST /api/experimental/session/{id}/wait` (`HTTP 204`), or
+>   poll `time.idle` in `GET /api/session/{id}`.
+> Sections that still show `prompt_async`, `/session/:id/...` paths (without
+> `/api`), `{"parts":[...]}` bodies or `noReply` are HISTORICAL V1 examples
+> pending rewrite. Corrected sections: 3, 4a, 4b, 4c, 5.1.
+>
 > This file contains ONLY the current rules. Version history lives in
 > **CHANGELOG.md**; Windows pitfalls in **CROSS_WINDOWS.md**. LLM agents:
 > read **AGENTS.md** first for a 3-minute bootstrap; humans start at
@@ -136,7 +153,7 @@ This phase prevents the Leader from accidentally waking up unrelated sessions or
 ## 3. Read messages from a session
 
 ```powershell
-curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/session/<SESSION_ID>/message?limit=20"
+curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/api/session/<SESSION_ID>/message?limit=20"
 ```
 
 ## 4. Send a message to another session
@@ -165,57 +182,71 @@ curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/session/<SESSION_ID>
 > Write messages without accents or replace problematic characters.
 > This applies to ALL sends between sessions (leader->advisor and advisor->leader).
 
-### 4a. Deliver a message without the destination agent processing it (`noReply: true`)
+### 4a. Deliver a notice without waking the destination (`synthetic`)
 
-The message instantly appears in the destination session's chat as a
-user message, but the destination agent does NOT reply. Useful for notes/notices.
+The message appears in the destination session's chat but does NOT start a
+turn: useful for notes/notices. This replaces the V1 `noReply: true` on
+`POST /session/:id/message`, which no longer exists in the V2 API.
 
 ```powershell
-$body = '{"parts":[{"type":"text","text":"YOUR_MESSAGE"}],"noReply":true}'
+$body = '{"text":"YOUR_MESSAGE"}'
 $body | Set-Content "$env:TEMP\msg.json" -Encoding ascii -NoNewline
 
 curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" `
   --data-binary "@$env:TEMP\msg.json" `
-  "http://127.0.0.1:$port/session/<DEST_ID>/message"
+  "http://127.0.0.1:$port/api/session/<DEST_ID>/synthetic"
 ```
 
 Returns `HTTP 200` with the created message.
 
-### 4b. Send a message and wait for the destination agent's reply (synchronous)
+### 4b. Send a message and wait for the destination to go idle (V2)
 
-Without `noReply`, the destination session's agent processes the message and its
-full reply (reasoning + text) is returned in the same call.
+In the V2 API every prompt is admitted asynchronously (`HTTP 200` immediately);
+there is no synchronous POST that returns the agent's reply (that was the V1
+`POST /session/:id/message`). To wait until the destination has finished
+processing the prompt, use the experimental wait endpoint (blocks until the
+session is idle) or poll `time.idle` in `GET /api/session/{id}`:
 
 ```powershell
-$body = '{"parts":[{"type":"text","text":"YOUR_QUESTION"}]}'
+$body = '{"text":"YOUR_MESSAGE","delivery":"queue"}'
 $body | Set-Content "$env:TEMP\msg.json" -Encoding ascii -NoNewline
 
 curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" `
   --data-binary "@$env:TEMP\msg.json" `
-  "http://127.0.0.1:$port/session/<DEST_ID>/message"
+  "http://127.0.0.1:$port/api/session/<DEST_ID>/prompt"
+
+# Block until the destination is idle again (experimental, returns HTTP 204):
+curl.exe -s -X POST -u "opencode:$password" `
+  "http://127.0.0.1:$port/api/experimental/session/<DEST_ID>/wait"
 ```
 
-This call is synchronous: it waits for the destination agent to finish replying
-(it may take over 1 minute).
+The Cross-Talk equivalent of "wait for the reply" is the ACK/NACK handshake
+(section 7): the destination agent posts a v2 JSON ACK back to your session.
 
 ### 4c. Send a message and let the destination agent process it in the background (STANDARD method for cross-talk)
 
-`POST /session/:id/prompt_async` delivers the message and returns `HTTP 204`
+`POST /api/session/:id/prompt` delivers the message and returns `HTTP 200`
 immediately. The destination agent processes it in the background and may
-reply to you later. **It is the standard and preferred method for all
-agent communication** (v1.5, model-d contribution): it does not block, wakes up the
-destination, and does not need `noReply` (which is redundant -- `prompt_async` already delivers
-without waiting for a reply). Use `noReply` (4a) or synchronous `/message` (4b) only
-when you have a specific reason.
+reply to you later. **It is the standard and preferred method for all agent
+communication**: it does not block the sender, wakes up an idle destination,
+and the body is the V2 contract `{"text": ...}` (NOT the V1 `{"parts":[...]}`;
+`prompt_async` no longer exists).
 
 ```powershell
-$body = '{"parts":[{"type":"text","text":"YOUR_MESSAGE"}]}'
+$body = '{"text":"YOUR_MESSAGE","delivery":"queue"}'
 $body | Set-Content "$env:TEMP\msg.json" -Encoding ascii -NoNewline
 
 curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" `
   --data-binary "@$env:TEMP\msg.json" `
-  "http://127.0.0.1:$port/session/<DEST_ID>/prompt_async"
+  "http://127.0.0.1:$port/api/session/<DEST_ID>/prompt"
 ```
+
+`delivery` (OpenAPI V2 enum `steer|queue`, optional):
+- `"queue"` (default): if the destination is busy, the message waits until it
+  goes idle. Use for tasks -- it never derails a turn in progress.
+- `"steer"`: if the destination is busy, the message is delivered at its next
+  step boundary (the agent sees it mid-turn). Use for short control messages
+  (ACK/NACK/nudge) -- `cross.ps1 ack/nack/nudge` already send `steer`.
 
 ### 4d. The leader communicates IDs and model to members (identity/signature)
 
@@ -609,24 +640,26 @@ Notes:
 
 ## 5.1. "Wake-up" mechanism (receiving without polling)
 
-When session A sends a message to session B **without `noReply`** (or with
-`prompt_async`), session B's agent "wakes up" automatically and processes the
-message in the background: B does not need to be polling. This is how
-the complete chain works without polling from the sender:
+When session A sends a message to session B with `POST /api/session/<B>/prompt`,
+session B's agent "wakes up" automatically and processes the message in the
+background: B does not need to be polling. This is how the complete chain works
+without polling from the sender:
 
-1. The **leader** sends the task with `prompt_async` (section 4c) to the advisors.
+1. The **leader** sends the task with `POST /api/session/<advisor>/prompt`
+   (`delivery: "queue"`, section 4c) to the advisors.
 2. Each **advisor** wakes up on its own, works the task and replies to the leader
-   using section 5 (POST to the leader's session, also without `noReply`).
+   using section 5 (POST to the leader's session; the CLI sends ACK/NACK/nudge
+   with `delivery: "steer"` so control messages are seen promptly).
 3. The **leader** is woken up again when the reply arrives and can
    process it without having polled the history.
 
 What does NOT wake up the destination:
-- `noReply: true` only leaves the message in the chat; the agent does not react.
+- `POST /api/session/<id>/synthetic` (the V1 `noReply`) only leaves the message
+  in the chat; the agent does not react.
 - Writing the reply in your own conversation does not propagate to anyone.
 
-To cleanly finish a turn: deliver your message (with `prompt_async` or
-POST without `noReply`) and finish your reply; the incoming message will wake you
-up when it arrives.
+To cleanly finish a turn: deliver your message with a `prompt` POST and finish
+your reply; the incoming message will wake you up when it arrives.
 
 > **Verified pitfall (2026-08-11, riddle competition):** during
 > round 2, model-b/model-c replied to the leader with `noReply: true`. The message
