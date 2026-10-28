@@ -1,5 +1,7 @@
 ﻿# OpenCode Cross-Talk
 
+> **Compatible with V1 and V2** — This repo extends `opencode-crosstalk` locally (Phase 2: `wait-idle`, HMAC `sig`, `fixture-clean`) *without* deprecating upstream V1 (`valledemena/opencode-crosstalk-v2`). The V1 wire format is still documented in the historical sections of `CROSS_TALK.md`; the CLI in this repo (`cross.ps1`) emits V2 only. Release: **v2.2.0** (see `CHANGELOG.md`).
+
 [![tests](https://github.com/davidlopezsalvador/opencode-crosstalk/actions/workflows/test.yml/badge.svg)](https://github.com/davidlopezsalvador/opencode-crosstalk/actions/workflows/test.yml)
 
 [User Guide for Non-Coders](USER_GUIDE.md) | [Protocol spec](CROSS_TALK.md) | [Changelog](CHANGELOG.md) | [Windows pitfalls](CROSS_WINDOWS.md)
