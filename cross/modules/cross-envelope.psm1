@@ -1,5 +1,5 @@
 # cross-envelope.psm1 - Structured envelope format (v2 JSON) with v1 fallback.
-# Fase 1 (v1.9): constructores y parser del sobre estructurado JSON v2.
+# Phase 1 (v1.9): constructores y parser del sobre estructurado JSON v2.
 # El sobre v1 ([msg_id=... | ...]) NO se modifica; el v2 viaja como linea
 # adicional "ENVELOPE-V2: {json}" en el cuerpo del mensaje y el parser
 # acepta ambos (v2 primero, v1 fallback). payload.text es SIEMPRE string;
@@ -10,7 +10,7 @@ if (-not (Get-Command ConvertTo-AsciiSafe -ErrorAction SilentlyContinue)) {
     Import-Module (Join-Path $PSScriptRoot '..\lib\cross-format.psm1') -Force -DisableNameChecking
 }
 
-# Fase 2 (2026-10-28): HMAC-SHA256 signature over the canonical envelope text.
+# Phase 2 (2026-10-28): HMAC-SHA256 signature over the canonical envelope text.
 # Canonical form: "v2\n{type}\n{msg_id}\n{token}\n{timestamp}\n{payloadText}".
 # Secret precedence: param -Secret > env CROSS_HMAC_SECRET > file cross/cross.hmac.secret.
 function Get-CrossHmacSecret {

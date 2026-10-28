@@ -1,4 +1,4 @@
-﻿# CHANGELOG â€” OpenCode Cross-Talk (protocol history)
+# CHANGELOG â€” OpenCode Cross-Talk (protocol history)
 
 Version history, discoveries, and pitfalls of the Cross-Talk protocol.
 The **current rules** are in `CROSS_TALK.md`; this file is history only.
@@ -9,7 +9,7 @@ mixed current specification with changelog and PowerShell pitfalls).
 
 ## Versions
 
-### v2.2.0 (2026-10-28) - Fase 2: wait-idle, HMAC envelope signature, docs
+### v2.2.0 (2026-10-28) - Phase 2: wait-idle, HMAC envelope signature, docs
 
 - `Wait-CrossSessionIdle`: server-side `POST /api/experimental/session/{id}/wait`
   (HTTP 204 = idle) + polling fallback (`time.idle >= updated` / quiet 3000 ms).
@@ -29,7 +29,7 @@ mixed current specification with changelog and PowerShell pitfalls).
 - Fixture cleaner (`fixture-clean.psm1`) for pre-existing test contamination
   (`T-ack`, `T-nack`, `T-dlq`, `T-escalate`, `T-ipc`).
 - Pre-existing test failures annotated in commit (`T-ack` 3, `T-nack` 2, `T-dlq` 2,
-  `T-escalate` 1, `T-race` timeout, `T-ipc` error — not caused by Fase 2).
+  `T-escalate` 1, `T-race` timeout, `T-ipc` error — not caused by Phase 2).
 
 ### v2.1.1 (2026-10-19) - Install & ACK hardening (found in a real installation)
 
@@ -88,7 +88,7 @@ Origin: leader MUSE SPARK 1.2; advisor council (MIMO, HY3, NEMOTRON, BIG PICKLE,
 - **B1 (MIMO):** removed `ConvertTo-CrossV1` (cross-envelope.psm1) and the 6+ legacy
   ACK:/NACK: regexes in cross-delivery.psm1; `Parse-CrossEnvelope` v2-only, no v1 fallback.
   `T-contract.ps1` inverted regression (v1 rejected) verified 0 v1 refs.
-- **B2 (HY3):** docs â€” `CROSS_TALK.md` Fase 3 marked COMPLETED + v2-only (no v1 fallback);
+- **B2 (HY3):** docs â€” `CROSS_TALK.md` Phase 3 marked COMPLETED + v2-only (no v1 fallback);
   `QUICKSTART.md` breaking-change note; this CHANGELOG v2.0.0 entry.
 - **B3 (NEMOTRON):** suite 7098 (no v1); `T-contract`/`T-fuzz`/`T-ack` v2; `T-cli` 47/0,
   `T-transport` 29/0; CI windows+ubuntu green; tag v2.0.0.
@@ -354,11 +354,11 @@ Unix (Linux/macOS/WSL) is unlocked.
 Suite result: **567 pass, 0 fail** (30 suites). `cross validate` clean.
 Backup before implementation: `backup_v191_20260820_200820.zip`.
 
-### v1.9.0 (2026-08-20) â€” envelope JSON v2, Fase 1 (compatible)
+### v1.9.0 (2026-08-20) â€” envelope JSON v2, Phase 1 (compatible)
 
 Design origin: external review (GLM-5.3, shared Z.ai chat "RevisiÃ³n Repositorio
 GitHub"), improvement #1 "Sobre estructurado JSON" (alta prioridad). Human
-approved scope: ONLY Fase 1 (v1.9). Plan 40 approved 3/3 CON CAMBIOS by
+approved scope: ONLY Phase 1 (v1.9). Plan 40 approved 3/3 CON CAMBIOS by
 advisors; result verified 2/3 APROBADO (MIMO, NEMOTRON); ROUTER discarded
 by human decision (continue without free models, verdict not retried).
 
@@ -373,7 +373,7 @@ Backward compatible: existing tests and advisors keep working unchanged.
   applied internally), `Parse-CrossEnvelope` (line-based `ENVELOPE-V2:` or pure
   JSON; validates `v=2`, `type` in {message,ack,nack}, soft-validates
   `requires_ack` bool and ISO8601 `timestamp`; failure â†’ `valid=$false` â†’
-  v1 fallback), `ConvertTo-CrossV1` (v2 â†’ equivalent v1 text, tool for Fase 2+).
+  v1 fallback), `ConvertTo-CrossV1` (v2 â†’ equivalent v1 text, tool for Phase 2+).
 - **`cross-delivery.psm1` minimal changes** â€” import of the new module at the
   top (before use); `New-CrossDelivery` appends the v2 line to the body after
   the v1 envelope; `Parse-CrossAckText` tries v2 first (ack/nack extract
@@ -763,7 +763,7 @@ and the engine marked them NACK_TIMEOUT even though the response arrived.
 Implemented the 4 items from the Phase 5 plan (external-reviewer recommendation in
 33_sintesis): legacy wrapper `send_message.ps1`, `cross scan --retry-auto`,
 `cross metrics` and the multi-sender race test on outbox.md. See
-`whiteboard/34_sintesis_fase5.md`.
+`whiteboard/34_sintesis_Phase5.md`.
 
 - **Wrapper `send_message.ps1` (legacy signature):** `-Destino -Texto [-NoReply]
   [-Puerto] [-Password] [-LegacyMode]`. Normal mode: auto-generates
@@ -982,7 +982,7 @@ in audit, and `aviso-spof --apply` appending AVISO-SPOF). See CROSS_TALK.md Â§
 
 ### cross.ps1 Phase 3 - external-reviewer review v2 (2026-08-12)
 
-External review of `CROSS_cross_fase3_20260812.zip` by external-reviewer (8
+External review of `CROSS_cross_Phase3_20260812.zip` by external-reviewer (8
 validation points): verdict "engine functionally complete and validated", 7 bugs.
 All closed + 2 design observations:
 
@@ -1043,7 +1043,7 @@ whiteboard/29f_sintesis_delivery.md, decisions D1-D4).
 
 ### cross.ps1 Phase 1 - external-reviewer review (2026-08-12)
 
-Review of the ZIP `CROSS_cross_fase1_20260812.zip` by external-reviewer: network
+Review of the ZIP `CROSS_cross_Phase1_20260812.zip` by external-reviewer: network
 contract correct on 7/7 validation points. 9 bugs reported; the 3
 blockers (BUG 1-3) were closed before Phase 2 and the remaining 6 (BUG 4-9).
 Verified: 45/45 tests (T-cli 29/29, T-transport 16/16).

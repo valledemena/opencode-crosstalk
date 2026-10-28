@@ -1,4 +1,4 @@
-﻿# OpenCode Cross-Talk between OpenCode Desktop sessions
+# OpenCode Cross-Talk between OpenCode Desktop sessions
 
 Reference document so that any agent in this project can communicate
 with other open chats/sessions in the same project.
@@ -248,7 +248,7 @@ curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" 
   step boundary (the agent sees it mid-turn). Use for short control messages
   (ACK/NACK/nudge) -- `cross.ps1 ack/nack/nudge` already send `steer`.
 
-**Wait for a session to go idle (optional, Fase 2):** the CLI provides a
+**Wait for a session to go idle (optional, Phase 2):** the CLI provides a
 `wait-idle` subcommand that blocks (with a timeout) until the target session
 is idle. Primary: server-side `POST /api/experimental/session/{id}/wait`
 (HTTP 204 = idle); fallback: poll `GET /api/session/{id}` and treat it as
@@ -386,7 +386,7 @@ This way no one guesses or copies other people's IDs.
 > essential that the leader assigns each member ITS real ID (the one
 > that appears in the list) and communicates it as-is.
 
-### 4d.1. HMAC signature of the envelope (optional, Fase 2)
+### 4d.1. HMAC signature of the envelope (optional, Phase 2)
 
 When the secret is configured (`CROSS_HMAC_SECRET` env or file
 `cross/cross.hmac.secret`), every v2 envelope carries a `sig` field computed
@@ -1734,18 +1734,18 @@ files (audit, escalated, DLQ, outbox); they do not rewrite previous lines.
 > | MEDIUM | MEDIUM-HIGH | **SSE / long-polling** | Only if the backend supports it; if not, do NOT implement. Test experimentally first: `GET /event`, create activity, observe `session.status`/`message.updated`/`session.idle`/`session.error` (external review). |
 > | LOW | LOW | **`@opencode-ai/sdk` SDK** | DX improvement; `curl`+ASCII works now. Verify semantics first. |
 > | LOW/MEDIUM | HIGH | **`session.abort`** | Opt-in / soft-abort only first. Blind aborting may leave inconsistent states. |
-> | LOW/MEDIUM | MEDIUM-HIGH | **Envelope v2 exclusive (Fase 3, v2.0)** | COMPLETED (v1.17): v1 parser removed, `Parse-CrossEnvelope` is the only parser. v2 (`ENVELOPE-V2: {json}` / pure JSON) is the only accepted format. |
+> | LOW/MEDIUM | MEDIUM-HIGH | **Envelope v2 exclusive (Phase 3, v2.0)** | COMPLETED (v1.17): v1 parser removed, `Parse-CrossEnvelope` is the only parser. v2 (`ENVELOPE-V2: {json}` / pure JSON) is the only accepted format. |
 
-- **Envelope JSON v2 exclusive (Fase 3, v2.0): COMPLETED.** Endgame of improvement #1
+- **Envelope JSON v2 exclusive (Phase 3, v2.0): COMPLETED.** Endgame of improvement #1
   (GLM-5.3 design, "Sobre estructurado JSON"). Since v2.0 the engine accepts
   **only** `ENVELOPE-V2: {json}` / pure JSON â€” v1 legacy ACK:/NACK: free-text formats are
-  **rejected** (see sec 12.1 ENVELOPE-V2 note, v1.9.0). Fase 3
+  **rejected** (see sec 12.1 ENVELOPE-V2 note, v1.9.0). Phase 3
   made v2 the ONLY format: `Parse-CrossEnvelope` (v2-only, legacy
   v1 regexes removed in v1.17) is the sole parser, and the contract becomes
   fully validated (`v=2`, `type` --- {message,ack,nack}, mandatory non-empty
   `msg_id`/`timestamp`, `requires_ack` bool -- invariants already enforced by
   the T-fuzz fuzzer). **Shipped in v2.0.0 as a BREAKING change** (no v1 fallback).
-  Dependencies (Fase 2 deprecation v1.10, advisor migration) are satisfied.
+  Dependencies (Phase 2 deprecation v1.10, advisor migration) are satisfied.
 
 - **Long-polling / SSE:** if the OpenCode Desktop API ever supports them,
   replace active polling (section 6) with these mechanisms to reduce

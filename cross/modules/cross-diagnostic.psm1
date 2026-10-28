@@ -1,4 +1,4 @@
-# cross-diagnostic.psm1 - Fase 4a (diagnostico): poll, status, reconcile, aviso-spof.
+# cross-diagnostic.psm1 - Phase 4a (diagnostico): poll, status, reconcile, aviso-spof.
 # Observacion pura salvo las mutaciones explicitas (B1: poll marca NACKED; aviso-spof con --apply).
 # Uso (via cross.ps1): cross poll|status|reconcile|aviso-spof
 Set-StrictMode -Version 2.0
@@ -432,7 +432,7 @@ function Get-CrossReconcile {
 
 function Write-AppendDiagLine {
     param([string]$Path, [string]$Line)
-    # E2 (v1.18): delega a Add-CrossLogLine (elimina duplicación, hereda mutex+retries)
+    # E2 (v1.18): delega a Add-CrossLogLine (elimina duplicaciÃ³n, hereda mutex+retries)
     return Add-CrossLogLine -Path $Path -Line $Line
 }
 

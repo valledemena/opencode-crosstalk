@@ -1,4 +1,4 @@
-# Fixture cleaner for pre-existing test contamination (Fase 2 fix).
+# Fixture cleaner for pre-existing test contamination (Phase 2 fix).
 # The real cross.config.local.json (with session/model identity) pollutes
 # fixtures that expect a blank/default identity. This module temporarily
 # moves it aside and restores it after the test.

@@ -232,10 +232,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File T-send.ps1
 | Local tests fail in T-ack/T-transport | A runtime `cross.config.local.json` overrides the template identity | `fixture-clean.psm1` temporarily moves the sidecar; run `T-ack` etc. from `cross/` |
 | `wait-idle` times out | Endpoint unavailable (no server / no session) | Check `cross health`; fallback polling uses `time.idle` in `Session.Info.time` |
 | `verify` reports `missing_sig` | Envelope created without `-Secret` and no `CROSS_HMAC_SECRET` set | Set `CROSS_HMAC_SECRET` env or `cross/cross.hmac.secret`; `sig` is optional when secret is absent |
-| `wait-idle` / `verify` not found | CLI built before Fase 2 | Upgrade to `v2.2.0` (`master`); see `CHANGELOG.md` |
+<|message|> `wait-idle` / `verify` not found | CLI built before Phase 2 | Upgrade to `v2.2.0` (`master`); see `CHANGELOG.md` |
 | `fixture-clean` leaves `.test-backup` / `.bak` files | Crash or interrupted test | Remove `cross/*.test-backup` / `*.bak` manually; `fixture-clean` restores on exit |
 
-> **Compatible v1 + v2 (v2.2.0, Fase 2).** El repo extiende `opencode-crosstalk` local sin deprecar V1.
+> **Compatible v1 + v2 (v2.2.0, Phase 2).** This repo extends the local `opencode-crosstalk` without deprecating V1; `v2.0.0` made ENVELOPE-V2 exclusive, `v2.2.0` adds Phase 2.
 > `v2.0.0` = ENVELOPE-V2 exclusivo; `v2.1.1` = install/ACK/cwd; `v2.2.0` = `wait-idle`/`verify`/HMAC/`fixture-clean`.
 
 If a session appears frozen after a provider error, check `cross diagnose --msg X`

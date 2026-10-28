@@ -1,4 +1,4 @@
-# cross-action.psm1 - Fase 4b (estados terminales/reactivacion): ack, nack, resume,
+# cross-action.psm1 - Phase 4b (estados terminales/reactivacion): ack, nack, resume,
 # restart-task, nudge, escalate, dlq, quarantine, diagnose.
 # Explicit writes: outbox (STATUS/attempt), escalated.md, dlq-messages.md, audit_log.md.
 # audit_log.md is multi-writer (sender + receiver + leader): use Write-AuditEntry (retry).

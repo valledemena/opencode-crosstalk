@@ -1,7 +1,7 @@
-# OpenCode Cross-Talk - Quick Start (v2.2.0, Fase 2)
+# OpenCode Cross-Talk - Quick Start (v2.2.0, Phase 2)
 
 > **Compatible con v1 y v2.** El repo mantiene compatibilidad sin deprecar v1
-> (Fase 1: extender local, no upstream). `v2.0.0` introdujo ENVELOPE-V2 exclusivo
+> (Phase 1: extend locally, no upstream). `v2.0.0` introduced ENVELOPE-V2 exclusively as the wire format; `v2.2.0` adds `wait-idle` and HMAC (`sig`). Legacy v1 (`ACK:`, `TOKEN:`) remain available through historical code paths, but the `cross.ps1` CLI only emits v2.
 > como wire format; `v2.2.0` añade `wait-idle` y HMAC (`sig`). Los mensajes v1
 > (`ACK:`, `TOKEN:`) siguen disponibles a través del código histórico, pero
 > el CLI `cross.ps1` solo emite v2.
@@ -90,7 +90,7 @@ precedence), ACK_TIMEOUT (destination busy - use nudge), DEST_NOT_FOUND
 (unknown session), OUTBOX_MSG_NOT_FOUND (old bug: run from any cwd now works;
 paths resolve against the config file since v2.1.1).
 - Fixture contamination (`fixture-clean`): `cross.config.local.json` overrides template identity. Use `fixture-clean.psm1` (`Start-CleanFixture` / `Stop-CleanFixture`) or run from `cross/`.
-- Version note: `v2.2.0` (Fase 2) adds `wait-idle`, `verify` (HMAC), and `fixture-clean`.
+- Version note: `v2.2.0` (Phase 2) adds `wait-idle`, `verify` (HMAC), and `fixture-clean`.
 
 ## Next steps
 - LLM bootstrap: AGENTS.md

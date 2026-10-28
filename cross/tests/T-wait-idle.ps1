@@ -1,4 +1,4 @@
-# T-wait-idle.ps1 - Wait-CrossSessionIdle tests (Fase 2). No server required (mocks).
+# T-wait-idle.ps1 - Wait-CrossSessionIdle tests (Phase 2). No server required (mocks).
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File tests\T-wait-idle.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent

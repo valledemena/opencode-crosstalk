@@ -1,4 +1,4 @@
-# T-hmac.ps1 - HMAC signature tests (Fase 2). No server required.
+# T-hmac.ps1 - HMAC signature tests (Phase 2). No server required.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File tests\T-hmac.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent

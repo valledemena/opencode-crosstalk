@@ -1,4 +1,4 @@
-# Contract tests (Fase 1, v1.9): envelope JSON v2 - round-trip, v1 fallback,
+# Contract tests (Phase 1, v1.9): envelope JSON v2 - round-trip, v1 fallback,
 # body mixto, prevalencia v2, ConvertTo-CrossV1.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File tests\T-contract.ps1
 $ErrorActionPreference = 'Stop'

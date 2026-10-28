@@ -98,7 +98,7 @@ function Expand-Path {
 function Get-CrossPassword {
     $pw = [Environment]::GetEnvironmentVariable('OPENCODE_SERVER_PASSWORD')
     if ($pw) { return @{ value = $pw; source = 'env' } }
-    # Fase 1 (2026-10-28): OpenCode V2 servers rotate the password on each start
+    # Phase 1 (2026-10-28): OpenCode V2 servers rotate the password on each start
     # and persist it in ~/.config/opencode/service.json. That file is written by
     # the live server itself, so it outranks the (often stale) .env copy.
     $homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } elseif ($env:HOME) { $env:HOME } else { '' }
@@ -332,7 +332,7 @@ function Get-CrossPortByScan {
     return $null
 }
 
-# Fase 1 (2026-10-28): OpenCode V2 desktop builds may pick a port OUTSIDE the
+# Phase 1 (2026-10-28): OpenCode V2 desktop builds may pick a port OUTSIDE the
 # configured scan range (e.g. 28894 with port_scan_range 30000-40000) and the
 # log scraper is deprecated. Before brute-force scanning, probe the actual
 # local TCP listeners on 127.0.0.1 that answer the health probe.
@@ -414,7 +414,7 @@ function Get-CrossSessionState {
     }
 }
 
-# Fase 2 (2026-10-28): wait until a session goes idle (V2). Primary: POST the
+# Phase 2 (2026-10-28): wait until a session goes idle (V2). Primary: POST the
 # experimental wait endpoint (blocks server-side; HTTP 204 = idle). If the
 # endpoint is unavailable, times out (curl status 0) or answers non-204, fall
 # back to polling GET /api/session/{id}: the session is idle when
@@ -488,7 +488,7 @@ function Wait-CrossSessionIdle {
     return @{ ok = $true; idle = $false; timed_out = $true; method = 'poll-timeout'; elapsed_ms = [math]::Round($watch.Elapsed.TotalMilliseconds) }
 }
 
-# Fase 1 (2026-10-28): normalize the message-list shape across API versions.
+# Phase 1 (2026-10-28): normalize the message-list shape across API versions.
 # V2 shape: {"data":[{id, time:{created(ms)}, type, text?, content?[{type,text}]}, ...], "cursor": ...}
 #           (default order newest-first; user text is a flat "text" field;
 #           assistant text lives in content[] with type "text").
@@ -652,7 +652,7 @@ function Resolve-CrossEndpoint {
         Write-CrossDiag -Level debug -Message 'log: no port detected (regex did not match or dir missing)'
     }
 
-    # Fase 1: probe real local listeners before brute-force port scanning
+    # Phase 1: probe real local listeners before brute-force port scanning
     $listener = Get-CrossPortFromListeners
     if ($listener) {
         $detectionMethod = 'listeners'

@@ -11,7 +11,7 @@ handshakes, retries, idempotency and a dead-letter queue. The CLI is
 `cross/cross.ps1`. Wire format is **ENVELOPE-V2 JSON only** (v1 free-text
 `ACK:`/`NACK:`/`TOKEN:` lines are rejected on the wire since v2.0, but the codebase keeps v1 compatibility in historical sections). Full spec: `CROSS_TALK.md`.
 
-> **Compatible v1 + v2:** this repo extends `opencode-crosstalk` locally (Fase 2: `wait-idle`, HMAC `sig`) without deprecating upstream V1 (`valledemena/opencode-crosstalk-v2`). `v2.0.0` made ENVELOPE-V2 exclusive; `v2.2.0` adds Fase 2.
+> **Compatible v1 + v2:** this repo extends `opencode-crosstalk` locally (Phase 2: `wait-idle`, HMAC `sig`) without deprecating upstream V1 (`valledemena/opencode-crosstalk-v2`). `v2.0.0` made ENVELOPE-V2 exclusive; `v2.2.0` adds Phase 2.
 
 ## Step 1 - Identify yourself
 
@@ -101,14 +101,14 @@ If AUTH_FAILED: the password lives in the `OPENCODE_SERVER_PASSWORD` env var or
 - A v1-style `ACK-PROTOCOLO:` line does NOT count.
 - Never hand-write `ACK:`/`NACK:`/`TOKEN:` lines: only `ENVELOPE-V2: {json}` or
   pure JSON is parsed.
-- **Verify an envelope's HMAC signature** (optional, Fase 2): if the secret
+- **Verify an envelope's HMAC signature** (optional, Phase 2): if the secret
   `CROSS_HMAC_SECRET` or file `cross/cross.hmac.secret` is set, every envelope
   carries a `sig` field:
   ```powershell
   .\cross.ps1 verify --envelope '{"v":2,"type":"message","msg_id":"X","token":"T"}' [--secret S]
   ```
   The `verify` handler returns `{valid:true|false, has_sig:true|false, ...}`.
-- **Wait for a session to go idle** (optional, Fase 2):
+- **Wait for a session to go idle** (optional, Phase 2):
   ```powershell
   .\cross.ps1 wait-idle --session ses_X [--timeout 60] [--interval 1000]
   ```
@@ -132,7 +132,7 @@ $env:CROSS_MY_MY_MODEL = 'your-model'
 
 - `v2.0.0` — ENVELOPE-V2 JSON only (breaking); no more v1 `ACK:`/`TOKEN:` lines.
 - `v2.1.1` — install/ACK/cwd fixes; `whoami` derives model from API.
-- `v2.2.0` (current, Fase 2): `wait-idle`, `verify` (HMAC `sig`), `fixture-clean`.
+- `v2.2.0` (current, Phase 2): `wait-idle`, `verify` (HMAC `sig`), `fixture-clean`.
 
 ## Troubleshooting
 

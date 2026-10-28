@@ -17,7 +17,7 @@ tmp/
 # Logs
 *.log
 
-# HMAC secret (Fase 2)
+# HMAC secret (Phase 2)
 cross/cross.hmac.secret
 
 # IDE
