@@ -126,6 +126,12 @@ $env:CROSS_MY_MY_MODEL = 'your-model'
 .\cross.ps1 whoami
 ```
 
+## Versions
+
+- `v2.0.0` — ENVELOPE-V2 JSON only (breaking); no more v1 `ACK:`/`TOKEN:` lines.
+- `v2.1.1` — install/ACK/cwd fixes; `whoami` derives model from API.
+- `v2.2.0` (current, Fase 2): `wait-idle`, `verify` (HMAC `sig`), `fixture-clean`.
+
 ## Troubleshooting
 
 ```powershell
@@ -137,6 +143,11 @@ $env:CROSS_MY_MY_MODEL = 'your-model'
 Common errors: `SERVER_NOT_FOUND` (Desktop closed) -> `AUTH_FAILED` (password
 precedence: env wins over .env) -> `ACK_TIMEOUT` (peer busy - try `nudge`) ->
 `DEST_NOT_FOUND` (bad session id).
+
+- **Tests fail (`fixture-clean`):** the local `cross.config.local.json` pollutes fixtures. Use `fixture-clean.psm1` (`Start-CleanFixture` / `Stop-CleanFixture`) in test scripts; it temporarily moves `local.json` and writes a blank `cross.config.json`.
+- **`verify` returns `missing_sig`:** no `CROSS_HMAC_SECRET` set and no `cross/cross.hmac.secret`. Set the env/file and rebuild the envelope with `-Secret`. Without the secret, `sig` is omitted (optional, not an error).
+- **`wait-idle` times out:** endpoint `POST /api/experimental/session/{id}/wait` unavailable (server down / session not found). Check `cross health`; fallback polling uses `GET /api/session/{id}`.
+- **`fixture-clean` leaves `.test-backup`/`.bak`:** interrupted test; delete manually (`cross/*.test-backup`). `fixture-clean` restores automatically on exit.
 
 ## Rules of good citizenship
 

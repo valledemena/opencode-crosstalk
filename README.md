@@ -229,7 +229,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File T-send.ps1
 | `ACK_TIMEOUT` | Destination busy/asleep | `cross nudge --to <id>`; `--ack-timeout 0` for fire-and-forget |
 | `install.ps1` exits 2 | Identity ambiguous (no/several candidates) | Re-run with `-SessionId ses_...` (it never picks `sessions[0]`) |
 | Two agents share one clone | Same local config for both | Give each one `CROSS_MY_MY_SESSION_ID` / `CROSS_MY_MY_MODEL` |
-| Local tests fail in T-ack/T-transport | A runtime `cross.config.local.json` overrides the template identity those suites assume | Move the sidecar aside (CI runs with the template) |
+| Local tests fail in T-ack/T-transport | A runtime `cross.config.local.json` overrides the template identity | `fixture-clean.psm1` temporarily moves the sidecar; run `T-ack` etc. from `cross/` |
+| `wait-idle` times out | Endpoint unavailable (no server / no session) | Check `cross health`; fallback polling uses `time.idle` in `Session.Info.time` |
+| `verify` reports `missing_sig` | Envelope created without `-Secret` and no `CROSS_HMAC_SECRET` set | Set `CROSS_HMAC_SECRET` env or `cross/cross.hmac.secret`; `sig` is optional when secret is absent |
+| `wait-idle` / `verify` not found | CLI built before Fase 2 | Upgrade to `v2.2.0` (`master`); see `CHANGELOG.md` |
+| `fixture-clean` leaves `.test-backup` / `.bak` files | Crash or interrupted test | Remove `cross/*.test-backup` / `*.bak` manually; `fixture-clean` restores on exit |
+
+> **Versions:** `v2.0.0` (exclusive ENVELOPE-V2), `v2.1.1` (install/ACK/cwd fixes), `v2.2.0` (Fase 2: `wait-idle`, `verify`/HMAC, `fixture-clean`). Full protocol rules in `CROSS_TALK.md`.
 
 If a session appears frozen after a provider error, check `cross diagnose --msg X`
 and the OpenCode logs; the anti-sleep protocol (`sigue`/RESUME) is described in

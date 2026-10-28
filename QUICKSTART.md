@@ -1,6 +1,6 @@
-# OpenCode Cross-Talk - Quick Start
+# OpenCode Cross-Talk - Quick Start (v2.2.0, Fase 2)
 
-Verifiable messaging between OpenCode sessions (outbox + ACK/NACK + DLQ).
+Verifiable messaging between OpenCode sessions (outbox + ACK/NACK + DLQ + HMAC + wait-idle).
 
 > **v2 wire format:** only `ENVELOPE-V2` JSON (`ENVELOPE-V2: {json}` or pure
 > JSON) is accepted. Legacy v1 free-text `ACK:`/`NACK:`/`TOKEN:` lines are
@@ -65,7 +65,15 @@ EN_VUELO -> CONFIRMADO | NACKED | EXPIRADO | DLQ.
 This posts a v2 JSON ACK to the sender's session and auto-resolves port/password.
 Then do the work; if you cannot, use `nack --reason CAPACITY|TOOL_MISSING|...`.
 
-## 6. If something fails
+## 6. Verify and idle (v2.2.0)
+```powershell
+.\cross.ps1 verify --envelope '{"v":2,"type":"message","msg_id":"X"}' [--secret S]
+.\cross.ps1 wait-idle --session ses_DEST [--timeout 60] [--interval 1000]
+```
+- `verify`: checks the HMAC `sig` (optional; requires `CROSS_HMAC_SECRET` or `cross/cross.hmac.secret`).
+- `wait-idle`: blocks until the session goes idle (`POST /api/experimental/session/{id}/wait` 204, or poll `time.idle` with 3000 ms quiet threshold).
+
+## 7. If something fails
 ```powershell
 .\cross.ps1 status              # outbox/DLQ overview
 .\cross.ps1 diagnose --msg X    # why it failed
@@ -75,6 +83,8 @@ Common errors: SERVER_NOT_FOUND (Desktop closed), AUTH_FAILED (password
 precedence), ACK_TIMEOUT (destination busy - use nudge), DEST_NOT_FOUND
 (unknown session), OUTBOX_MSG_NOT_FOUND (old bug: run from any cwd now works;
 paths resolve against the config file since v2.1.1).
+- Fixture contamination (`fixture-clean`): `cross.config.local.json` overrides template identity. Use `fixture-clean.psm1` (`Start-CleanFixture` / `Stop-CleanFixture`) or run from `cross/`.
+- Version note: `v2.2.0` (Fase 2) adds `wait-idle`, `verify` (HMAC), and `fixture-clean`.
 
 ## Next steps
 - LLM bootstrap: AGENTS.md

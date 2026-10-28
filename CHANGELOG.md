@@ -9,6 +9,28 @@ mixed current specification with changelog and PowerShell pitfalls).
 
 ## Versions
 
+### v2.2.0 (2026-10-28) - Fase 2: wait-idle, HMAC envelope signature, docs
+
+- `Wait-CrossSessionIdle`: server-side `POST /api/experimental/session/{id}/wait`
+  (HTTP 204 = idle) + polling fallback (`time.idle >= updated` / quiet 3000 ms).
+  Mockable (`SleepFn`, `WaitEndpointFn`, `StateFn`). Tests: T-wait-idle (8/0).
+- HMAC (`sig`): `Get-CrossHmacSecret` (env `CROSS_HMAC_SECRET` > file
+  `cross/cross.hmac.secret`), `Get-CrossHmacSignature` (canonical
+  `"v2\n{type}\n{msg_id}\n{token}\n{timestamp}\n{payloadText}"`),
+  `Test-CrossEnvelopeSignature`, `Parse-CrossEnvelope` exposes `.sig`.
+  `New-CrossEnvelope` / `New-CrossAckJson` / `New-CrossNackJson` / `Format-CrossEnvelopeV2`
+  accept `-Secret`. Tests: T-hmac (12/0).
+- CLI handlers: `wait-idle` (`--session`, `--timeout`, `--interval`);
+  `verify` (`--envelope`, `--secret`). Flags: `envelope`, `secret`.
+- Integration: `New-CrossDelivery`, `Send-CrossAck`, `Send-CrossNack` propagate
+  `-Secret`.
+- Docs: `AGENTS.md` (verify + wait-idle), `CROSS_TALK.md` (4d.1 HMAC + 4c wait-idle
+  + URLs `/session/` -> `/api/session/`), `.gitignore`: `cross/cross.hmac.secret`.
+- Fixture cleaner (`fixture-clean.psm1`) for pre-existing test contamination
+  (`T-ack`, `T-nack`, `T-dlq`, `T-escalate`, `T-ipc`).
+- Pre-existing test failures annotated in commit (`T-ack` 3, `T-nack` 2, `T-dlq` 2,
+  `T-escalate` 1, `T-race` timeout, `T-ipc` error — not caused by Fase 2).
+
 ### v2.1.1 (2026-10-19) - Install & ACK hardening (found in a real installation)
 
 Origin: full setup by a fresh LLM session (MUSE) coordinating 3 peer sessions.
