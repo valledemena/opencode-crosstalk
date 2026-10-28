@@ -44,7 +44,7 @@ function Test-SessionGrowing {
         [scriptblock]$SleepFn
     )
     function Read-SessionFingerprint([string]$sid, [int]$p, [string]$pw) {
-        $api = Invoke-CrossApi -Method 'GET' -Path "/session/$sid/message?limit=$Limit" -Port $p -Password $pw -TimeoutSec 8
+        $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$sid/message?limit=$Limit" -Port $p -Password $pw -TimeoutSec 8
         if ($api.status -ne 200) { return $null }
         $msgs = $api.body | ConvertFrom-Json
         $parts = @()
@@ -139,12 +139,12 @@ function New-CrossDelivery {
     function Do-Send([string]$sessionId, [string]$body) {
         if ($SendFn) { return @(& $SendFn $sessionId $body) }
         $payload = @{ parts = @(@{ type = 'text'; text = $body }) } | ConvertTo-Json -Depth 4
-        $api = Invoke-CrossApi -Method 'POST' -Path "/session/$sessionId/prompt_async" -BodyJson $payload -Port $port -Password $password
+        $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$sessionId/prompt" -BodyJson $payload -Port $port -Password $password
         return @{ status = $api.status; body = $api.body }
     }
     function Read-NewMessages {
         if ($ReadFn) { return @(& $ReadFn $MySessionId) }
-        $api = Invoke-CrossApi -Method 'GET' -Path "/session/$MySessionId/message?limit=30" -Port $port -Password $password -TimeoutSec 8
+        $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$MySessionId/message?limit=30" -Port $port -Password $password -TimeoutSec 8
         if ($api.status -ne 200) { return @() }
         $msgs = $api.body | ConvertFrom-Json
         $out = @()
@@ -233,7 +233,7 @@ function New-CrossDelivery {
             }
             [void](Set-OutboxEstado -MsgId $MsgId -Estado 'EXPIRADO' -Path $OutboxPath)
             $err = if ($st -le 0) { 'NETWORK' } else { "HTTP_$st" }
-            return @{ ok = $false; err = $err; reason_code = (Reason-Code $st); detail = "prompt_async -> HTTP $st"; state = 'EXPIRADO'; http_status = $st; attempt = $attempt }
+            return @{ ok = $false; err = $err; reason_code = (Reason-Code $st); detail = "prompt -> HTTP $st"; state = 'EXPIRADO'; http_status = $st; attempt = $attempt }
         }
 
         if (-not $RequiereAck) {

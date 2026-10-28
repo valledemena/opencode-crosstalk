@@ -31,7 +31,7 @@ if ($LegacyMode) {
     $json = $payload | ConvertTo-Json -Depth 4
     $file = Join-Path $env:TEMP "send_$(Get-Random).json"
     [System.IO.File]::WriteAllText($file, $json, [System.Text.Encoding]::ASCII)
-    $endpoint = if ($NoReply) { 'message' } else { 'prompt_async' }
+    $endpoint = if ($NoReply) { 'message' } else { 'prompt' }
     curl.exe -s -X POST -u "opencode:$Password" -H 'Content-Type: application/json' --data-binary "@$file" "http://127.0.0.1:$Puerto/session/$Destino/$endpoint"
     Remove-Item $file -ErrorAction SilentlyContinue
     exit 0

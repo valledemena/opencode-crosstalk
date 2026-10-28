@@ -45,7 +45,7 @@ function Invoke-CrossPost {
     $payload = @{ parts = @(@{ type = 'text'; text = $Text }); noReply = $true } | ConvertTo-Json -Depth 3 -Compress
     $file = Join-Path $env:TEMP ("cross_e2e_body_" + [System.Guid]::NewGuid().ToString('N') + ".json")
     [System.IO.File]::WriteAllText($file, $payload, [System.Text.Encoding]::ASCII)
-    $code = & curl.exe -s -o NUL -w '%{http_code}' --max-time 15 -X POST -u "opencode:$password" -H 'Content-Type: application/json' --data-binary "@$file" "http://127.0.0.1:$port/session/$Dest/prompt_async" 2>$null
+    $code = & curl.exe -s -o NUL -w '%{http_code}' --max-time 15 -X POST -u "opencode:$password" -H 'Content-Type: application/json' --data-binary "@$file" "http://127.0.0.1:$port/session/$Dest/prompt" 2>$null
     Remove-Item $file -ErrorAction SilentlyContinue
     return $code
 }

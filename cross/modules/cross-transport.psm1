@@ -136,7 +136,7 @@ function Get-CrossNetrcFile {
 function Test-CrossHealthRaw {
     param([int]$Port, [string]$Password)
     try {
-        $url = "http://127.0.0.1:$Port/global/health"
+        $url = "http://127.0.0.1:$Port/api/session"
         $tmp = Join-Path $env:TEMP ("cross_health_" + [System.Guid]::NewGuid().ToString('N') + ".txt")
         $netrcFile = $null
         try { $netrcFile = Get-CrossNetrcFile -Password $Password } catch { Write-CrossDiag -Level debug -Message "Test-CrossHealthRaw: netrc best-effort no disponible: $_" }
@@ -148,8 +148,8 @@ function Test-CrossHealthRaw {
         Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue
         if ($code -eq '401') { return @{ status = 401; healthy = $false } }
         if ($code -eq '200') {
-            try { $json = $body | ConvertFrom-Json; $ok = ($json.healthy -eq $true) } catch { $ok = $false }
-            if ($ok) { return @{ status = 200; healthy = $true; version = $json.version } }
+            try { $json = $body | ConvertFrom-Json; $ok = ($null -ne $json) } catch { $ok = $false }
+            if ($ok) { return @{ status = 200; healthy = $true; version = 'v2' } }
             return @{ status = 200; healthy = $false }
         }
         return @{ status = [int]$code; healthy = $false }
@@ -324,7 +324,7 @@ function Get-CrossSessionState {
         [scriptblock]$SessionFn
     )
     if ($SessionFn) { return @(& $SessionFn $Id) }
-    $api = Invoke-CrossApi -Method 'GET' -Path "/session/$Id" -Port $Port -Password $Password -TimeoutSec 8
+    $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$Id" -Port $Port -Password $Password -TimeoutSec 8
     if ($api.status -ne 200) {
         return @{ ok = $false; status_code = [int]$api.status; status = ''; last_activity_at = ''; model = ''; checkable = $false }
     }

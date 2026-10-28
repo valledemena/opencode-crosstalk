@@ -42,7 +42,7 @@ function Get-SessionState {
     $checkable = $false
     $growing = $false
     if ($Port) {
-        $api = Invoke-CrossApi -Method 'GET' -Path "/session/$SessionId" -Port $Port -Password $Password -TimeoutSec 8
+        $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$SessionId" -Port $Port -Password $Password -TimeoutSec 8
         if ($api.status -eq 200) {
             $s = $api.body | ConvertFrom-Json
             if ($null -ne $s -and $s.status) { $status = [string]$s.status }
@@ -480,7 +480,7 @@ function Get-CrossAvisoSpof {
                 } elseif ($Port) {
                     $body = "AVISO-SPOF | there is a fallen message for $($e.dest) | msg_id=$($e.msg_id) | from=$MySessionId"
                     $payload = @{ parts = @(@{ type = 'text'; text = $body }) } | ConvertTo-Json -Depth 4
-                    [void](Invoke-CrossApi -Method 'POST' -Path "/session/$targetSession/prompt_async" -BodyJson $payload -Port $Port -Password $Password)
+                    [void](Invoke-CrossApi -Method 'POST' -Path "/api/session/$targetSession/prompt" -BodyJson $payload -Port $Port -Password $Password)
                 }
                 [void]$notified.Add($e.msg_id)
             }

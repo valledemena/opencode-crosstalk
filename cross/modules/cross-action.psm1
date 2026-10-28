@@ -77,9 +77,9 @@ function Send-CrossAck {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = 'endpoint unresolved (no port)'; ack_text = $ackText }
         }
         $payload = @{ parts = @(@{ type = 'text'; text = $ackText }) } | ConvertTo-Json -Depth 4
-        $api = Invoke-CrossApi -Method 'POST' -Path "/session/$Dest/prompt_async" -BodyJson $payload -Port $Port -Password $Password
+        $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$Dest/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
-            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt_async -> HTTP $($api.status)"; http_status = $api.status; ack_text = $ackText }
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status; ack_text = $ackText }
         }
         $sent = $true
     }
@@ -128,9 +128,9 @@ function Send-CrossNack {
             return @{ ok = $false; err = 'SEND_FAILED'; detail = 'endpoint unresolved (no port)'; nack_text = $nackText }
         }
         $payload = @{ parts = @(@{ type = 'text'; text = $nackText }) } | ConvertTo-Json -Depth 4
-        $api = Invoke-CrossApi -Method 'POST' -Path "/session/$Dest/prompt_async" -BodyJson $payload -Port $Port -Password $Password
+        $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$Dest/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
-            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt_async -> HTTP $($api.status)"; http_status = $api.status; nack_text = $nackText }
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status; nack_text = $nackText }
         }
         $sent = $true
     }
@@ -164,9 +164,9 @@ function Send-CrossResume {
         $sent = $true
     } elseif ($Port) {
         $payload = @{ parts = @(@{ type = 'text'; text = $Text }) } | ConvertTo-Json -Depth 4
-        $api = Invoke-CrossApi -Method 'POST' -Path "/session/$To/prompt_async" -BodyJson $payload -Port $Port -Password $Password
+        $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$To/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
-            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt_async -> HTTP $($api.status)"; http_status = $api.status }
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status }
         }
         $sent = $true
     }
@@ -214,9 +214,9 @@ function Restart-CrossTask {
         $sent = $true
     } elseif ($Port) {
         $payload = @{ parts = @(@{ type = 'text'; text = $Text }) } | ConvertTo-Json -Depth 4
-        $api = Invoke-CrossApi -Method 'POST' -Path "/session/$dest/prompt_async" -BodyJson $payload -Port $Port -Password $Password
+        $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$dest/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
-            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt_async -> HTTP $($api.status)"; http_status = $api.status }
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status }
         }
         $sent = $true
     }
@@ -244,9 +244,9 @@ function Send-CrossNudge {
         $sent = $true
     } elseif ($Port) {
         $payload = @{ parts = @(@{ type = 'text'; text = $text }) } | ConvertTo-Json -Depth 4
-        $api = Invoke-CrossApi -Method 'POST' -Path "/session/$To/prompt_async" -BodyJson $payload -Port $Port -Password $Password
+        $api = Invoke-CrossApi -Method 'POST' -Path "/api/session/$To/prompt" -BodyJson $payload -Port $Port -Password $Password
         if ($api.status -lt 200 -or $api.status -ge 300) {
-            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt_async -> HTTP $($api.status)"; http_status = $api.status }
+            return @{ ok = $false; err = 'SEND_FAILED'; detail = "prompt -> HTTP $($api.status)"; http_status = $api.status }
         }
         $sent = $true
     }
@@ -287,7 +287,7 @@ function Write-CrossEscalated {
             $notified = $true
         } elseif ($Port) {
             $payload = @{ parts = @(@{ type = 'text'; text = $wake }) } | ConvertTo-Json -Depth 4
-            [void](Invoke-CrossApi -Method 'POST' -Path "/session/$To/prompt_async" -BodyJson $payload -Port $Port -Password $Password)
+            [void](Invoke-CrossApi -Method 'POST' -Path "/api/session/$To/prompt" -BodyJson $payload -Port $Port -Password $Password)
             $notified = $true
         }
     }

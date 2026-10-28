@@ -132,7 +132,7 @@ Global flags:
 
 claim/release/done operate on idempotencia-procesados.md (append-only).
 validate runs consistency lint (outbox vs idempotencia, lease UTC).
-send delivers a message via prompt_async and waits for a v2 JSON ACK/NACK (retries, lease).
+send delivers a message via prompt and waits for a v2 JSON ACK/NACK (retries, lease).
   A --msg id with no outbox entry is auto-created (EN_VUELO) when --dest and --text are given;
   --token defaults to the msg id so the receiver can ACK with a stable token.
   --no-wait sends without waiting for ACK (fire-and-forget, outbox remains IN_FLIGHT).
@@ -245,7 +245,7 @@ switch ($Command) {
             $r = New-Result -Ok $false -Code $ep.code -Data @{ err = $ep.err; detail = $ep.detail; hint = $ep.hint } -Cmd 'sessions'
             Out-Result $r 'sessions' -Watch $watch
         }
-        $api = Invoke-CrossApi -Method 'GET' -Path '/session' -Port $ep.port -Password $ep.password
+        $api = Invoke-CrossApi -Method 'GET' -Path '/api/session' -Port $ep.port -Password $ep.password
         if ($api.status -ge 400) {
             $errName = if ($api.status -ge 500) { 'HTTP_5XX' } elseif ($api.status -eq 401) { 'AUTH_FAILED' } elseif ($api.status -eq 404) { 'NOT_FOUND' } else { 'HTTP_4XX' }
             $r = New-Result -Ok $false -Code 3 -Data @{ err = $errName; detail = "GET /session -> HTTP $($api.status)"; http_status = $api.status } -Cmd 'sessions'
@@ -253,11 +253,13 @@ switch ($Command) {
         }
         $dirFilter = ''
         if ($flags['directory']) { $dirFilter = [string]$flags['directory'] }
-        $all = $api.body | ConvertFrom-Json
+        $parsed = $api.body | ConvertFrom-Json
+        $all = if ($parsed.data) { $parsed.data } elseif ($parsed -is [array]) { $parsed } else { @($parsed) }
         $list = @()
         foreach ($s in $all) {
-            if ($dirFilter -and $s.directory -and -not ($s.directory -eq $dirFilter)) { continue }
-            $list += @{ id = $s.id; title = $s.title; model = if ($s.model.id) { $s.model.id } else { '' }; directory = $s.directory }
+            $dir = if ($s.location -and $s.location.directory) { $s.location.directory } else { $s.directory }
+            if ($dirFilter -and $dir -and -not ($dir -eq $dirFilter)) { continue }
+            $list += @{ id = $s.id; title = $s.title; model = if ($s.model.id) { $s.model.id } else { '' }; directory = $dir }
         }
         $r = New-Result -Ok $true -Code 0 -Data @{ count = $list.Count; sessions = $list } -Cmd 'sessions'
         Out-Result $r 'sessions' -Watch $watch
@@ -274,7 +276,7 @@ switch ($Command) {
             $r = New-Result -Ok $false -Code $ep.code -Data @{ err = $ep.err; detail = $ep.detail; hint = $ep.hint } -Cmd 'read'
             Out-Result $r 'read' -Watch $watch
         }
-        $api = Invoke-CrossApi -Method 'GET' -Path "/session/$session/message" -Port $ep.port -Password $ep.password
+        $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$session/message" -Port $ep.port -Password $ep.password
         if ($api.status -ge 400) {
             $errName = if ($api.status -ge 500) { 'HTTP_5XX' } elseif ($api.status -eq 401) { 'AUTH_FAILED' } elseif ($api.status -eq 404) { 'NOT_FOUND' } else { 'HTTP_4XX' }
             $code = if ($api.status -eq 404) { 64 } else { 3 }
