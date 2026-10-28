@@ -10,6 +10,56 @@ if (-not (Get-Command ConvertTo-AsciiSafe -ErrorAction SilentlyContinue)) {
     Import-Module (Join-Path $PSScriptRoot '..\lib\cross-format.psm1') -Force -DisableNameChecking
 }
 
+# Fase 2 (2026-10-28): HMAC-SHA256 signature over the canonical envelope text.
+# Canonical form: "v2\n{type}\n{msg_id}\n{token}\n{timestamp}\n{payloadText}".
+# Secret precedence: param -Secret > env CROSS_HMAC_SECRET > file cross/cross.hmac.secret.
+function Get-CrossHmacSecret {
+    param([string]$Secret = '', [string]$RepoRoot = '')
+    if ($Secret) { return $Secret }
+    $envSec = [System.Environment]::GetEnvironmentVariable('CROSS_HMAC_SECRET', 'Process')
+    if ($envSec) { return $envSec }
+    if (-not $RepoRoot) { $RepoRoot = (Resolve-Path '..' | Split-Path -Parent) }
+    $filePath = Join-Path $RepoRoot 'cross/cross.hmac.secret'
+    if (Test-Path -LiteralPath $filePath) {
+        $txt = [System.IO.File]::ReadAllText($filePath, [System.Text.Encoding]::UTF8).Trim()
+        if ($txt) { return $txt }
+    }
+    return ''
+}
+function Get-CrossHmacSignature {
+    param(
+        [string]$Type,
+        [string]$MsgId,
+        [string]$Token,
+        [string]$Timestamp,
+        [string]$PayloadText,
+        [string]$Secret = ''
+    )
+    $sec = Get-CrossHmacSecret -Secret $Secret
+    if (-not $sec) { return '' }
+    $canonical = "v2`n$Type`n$MsgId`n$Token`n$Timestamp`n$PayloadText"
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($canonical)
+    $keyBytes = [System.Text.Encoding]::UTF8.GetBytes($sec)
+    $hmac = New-Object System.Security.Cryptography.HMACSHA256 -ArgumentList @(,$keyBytes)
+    $hash = $hmac.ComputeHash($bytes)
+    $sig = [BitConverter]::ToString($hash) -replace '-', ''
+    $sig = $sig.ToLower()
+    $hmac.Dispose()
+    return $sig
+}
+function Test-CrossEnvelopeSignature {
+    param(
+        [Parameter(Mandatory=$true)][object]$Envelope,
+        [string]$Secret = ''
+    )
+    $sigProp = $Envelope.PSObject.Properties['sig']
+    if (-not $sigProp -or [string]::IsNullOrEmpty([string]$sigProp.Value)) { return @{ valid = $false; reason = 'missing_sig' } }
+    $expected = Get-CrossHmacSignature -Type ([string]$Envelope.PSObject.Properties['type'].Value) -MsgId ([string]$Envelope.PSObject.Properties['msg_id'].Value) -Token ([string]$Envelope.PSObject.Properties['token'].Value) -Timestamp ([string]$Envelope.PSObject.Properties['timestamp'].Value) -PayloadText $(if ($Envelope.PSObject.Properties['payload'] -and $Envelope.PSObject.Properties['payload'].Value) { [string]$Envelope.PSObject.Properties['payload'].Value.PSObject.Properties['text'].Value } else { '' }) -Secret $Secret
+    $actual = [string]$sigProp.Value
+    $match = ($expected -and ($expected -eq $actual))
+    return @{ valid = $match; expected = $expected; actual = $actual; has_sig = $true }
+}
+
 function New-CrossEnvelope {
     param(
         [Parameter(Mandatory=$true)][string]$MsgId,
@@ -21,7 +71,8 @@ function New-CrossEnvelope {
         [string]$SenderSessionId = '',
         [string]$SenderModel = '',
         [string]$Text = '',
-        [string]$Timestamp = ''
+        [string]$Timestamp = '',
+        [string]$Secret = ''
     )
     if (-not $Timestamp) { $Timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
     $env = [ordered]@{
@@ -42,6 +93,8 @@ function New-CrossEnvelope {
         $env['sender'] = $sender
     }
     $env['payload'] = [ordered]@{ text = $Text }
+    $sig = Get-CrossHmacSignature -Type 'message' -MsgId $MsgId -Token $Token -Timestamp $Timestamp -PayloadText $Text -Secret $Secret
+    if ($sig) { $env['sig'] = $sig }
     return ($env | ConvertTo-Json -Depth 5 -Compress)
 }
 
@@ -51,7 +104,8 @@ function New-CrossAckJson {
         [string]$MsgId = '',
         [string]$Emitter = '',
         [string]$Model = '',
-        [string]$Timestamp = ''
+        [string]$Timestamp = '',
+        [string]$Secret = ''
     )
     if (-not $Timestamp) { $Timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
     $env = [ordered]@{
@@ -63,6 +117,8 @@ function New-CrossAckJson {
     if ($MsgId) { $env['msg_id'] = $MsgId }
     if ($Emitter) { $env['emitter'] = $Emitter }
     if ($Model) { $env['model'] = $Model }
+    $sig = Get-CrossHmacSignature -Type 'ack' -MsgId $MsgId -Token $Token -Timestamp $Timestamp -PayloadText '' -Secret $Secret
+    if ($sig) { $env['sig'] = $sig }
     return ($env | ConvertTo-Json -Depth 4 -Compress)
 }
 
@@ -75,7 +131,8 @@ function New-CrossNackJson {
         [string]$Reason = '',
         [string]$Detail = '',
         [string]$Timestamp = '',
-        [string]$RunId = ''
+        [string]$RunId = '',
+        [string]$Secret = ''
     )
     if (-not $Timestamp) { $Timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }
     $env = [ordered]@{
@@ -90,6 +147,8 @@ function New-CrossNackJson {
     if ($Reason) { $env['reason'] = $Reason }
     if ($Detail) { $env['detail'] = $Detail }
     if ($RunId) { $env['run_id'] = $RunId }
+    $sig = Get-CrossHmacSignature -Type 'nack' -MsgId $MsgId -Token $Token -Timestamp $Timestamp -PayloadText '' -Secret $Secret
+    if ($sig) { $env['sig'] = $sig }
     return ($env | ConvertTo-Json -Depth 4 -Compress)
 }
 
@@ -104,9 +163,10 @@ function Format-CrossEnvelopeV2 {
         [string]$SenderSessionId = '',
         [string]$SenderModel = '',
         [string]$Text = '',
-        [string]$Timestamp = ''
+        [string]$Timestamp = '',
+        [string]$Secret = ''
     )
-    $json = New-CrossEnvelope -MsgId $MsgId -RunId $RunId -Token $Token -RequiresAck $RequiresAck -Lease $Lease -Successor $Successor -SenderSessionId $SenderSessionId -SenderModel $SenderModel -Text $Text -Timestamp $Timestamp
+    $json = New-CrossEnvelope -MsgId $MsgId -RunId $RunId -Token $Token -RequiresAck $RequiresAck -Lease $Lease -Successor $Successor -SenderSessionId $SenderSessionId -SenderModel $SenderModel -Text $Text -Timestamp $Timestamp -Secret $Secret
     return ('ENVELOPE-V2: ' + (ConvertTo-AsciiSafe $json))
 }
 
@@ -190,7 +250,8 @@ function Parse-CrossEnvelope {
         detail = Get-Str $obj 'detail'
         timestamp = Get-Str $obj 'timestamp'
         payload_text = $payloadText
+        sig = Get-Str $obj 'sig'
     }
 }
 
-Export-ModuleMember -Function New-CrossEnvelope, New-CrossAckJson, New-CrossNackJson, Format-CrossEnvelopeV2, Parse-CrossEnvelope
+Export-ModuleMember -Function New-CrossEnvelope, New-CrossAckJson, New-CrossNackJson, Format-CrossEnvelopeV2, Parse-CrossEnvelope, Get-CrossHmacSecret, Get-CrossHmacSignature, Test-CrossEnvelopeSignature

@@ -52,7 +52,8 @@ function Send-CrossAck {
         [string]$AuditPath = '',
         [int]$Port = 0,
         [string]$Password = '',
-        [scriptblock]$SendFn
+        [scriptblock]$SendFn,
+        [string]$Secret = ''
     )
     if (-not $Token) { return @{ ok = $false; err = 'USAGE_ERROR'; detail = 'missing --token' } }
     if (-not $ForMsgId) { return @{ ok = $false; err = 'USAGE_ERROR'; detail = 'missing --for-msg-id' } }
@@ -60,7 +61,7 @@ function Send-CrossAck {
     if (-not $Dest) { $Dest = $myId }
     if (-not $Model) { $Model = Get-CrossMyModel }
     # D1 (v1.17): ACK como envelope v2 JSON (el receptor lo parsea con Parse-CrossEnvelope)
-    $ackText = New-CrossAckJson -Token $Token -MsgId $ForMsgId -Emitter $myId -Model $Model
+    $ackText = New-CrossAckJson -Token $Token -MsgId $ForMsgId -Emitter $myId -Model $Model -Secret $Secret
     $sent = $false
     if ($SendFn) {
         [void](& $SendFn $Dest $ackText)
@@ -100,7 +101,8 @@ function Send-CrossNack {
         [string]$AuditPath = '',
         [int]$Port = 0,
         [string]$Password = '',
-        [scriptblock]$SendFn
+        [scriptblock]$SendFn,
+        [string]$Secret = ''
     )
     if (-not $Token) { return @{ ok = $false; err = 'USAGE_ERROR'; detail = 'missing --token' } }
     if (-not $ForMsgId) { return @{ ok = $false; err = 'USAGE_ERROR'; detail = 'missing --for-msg-id' } }
@@ -112,7 +114,7 @@ function Send-CrossNack {
     if (-not $Dest) { $Dest = $myId }
     if (-not $Model) { $Model = Get-CrossMyModel }
     # D1 (v1.17): NACK como envelope v2 JSON (msg_id/run_id embebidos, sin limite de segmentos)
-    $nackText = New-CrossNackJson -Token $Token -MsgId $ForMsgId -Emitter $myId -Model $Model -Reason $Reason -RunId $ForRunId
+    $nackText = New-CrossNackJson -Token $Token -MsgId $ForMsgId -Emitter $myId -Model $Model -Reason $Reason -RunId $ForRunId -Secret $Secret
     $sent = $false
     if ($SendFn) {
         [void](& $SendFn $Dest $nackText)

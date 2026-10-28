@@ -20,11 +20,11 @@ with other open chats/sessions in the same project.
 >   `prompt_async`, NO `noReply` and NO `{"parts":[...]}` body anymore (V1
 >   concepts -- the server only tolerates them for now).
 > - Notice without wake-up: `POST /api/session/{id}/synthetic`, body
->   `{"text":"..."}` (replaces V1 `POST /session/:id/message` + `noReply`).
+>   `{"text":"..."}` (replaces V1 `POST /api/session/:id/message` + `noReply`).
 > - Read: `GET /api/session/{id}/message?limit=N`.
-> - Wait for idle: `POST /api/experimental/session/{id}/wait` (`HTTP 204`), or
+> - Wait for idle: `POST /api/experimental/api/session/{id}/wait` (`HTTP 204`), or
 >   poll `time.idle` in `GET /api/session/{id}`.
-> Sections that still show `prompt_async`, `/session/:id/...` paths (without
+> Sections that still show `prompt_async`, `/api/session/:id/...` paths (without
 > `/api`), `{"parts":[...]}` bodies or `noReply` are HISTORICAL V1 examples
 > pending rewrite. Corrected sections: 3, 4a, 4b, 4c, 5.1.
 >
@@ -186,7 +186,7 @@ curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/api/session/<SESSION
 
 The message appears in the destination session's chat but does NOT start a
 turn: useful for notes/notices. This replaces the V1 `noReply: true` on
-`POST /session/:id/message`, which no longer exists in the V2 API.
+`POST /api/session/:id/message`, which no longer exists in the V2 API.
 
 ```powershell
 $body = '{"text":"YOUR_MESSAGE"}'
@@ -203,7 +203,7 @@ Returns `HTTP 200` with the created message.
 
 In the V2 API every prompt is admitted asynchronously (`HTTP 200` immediately);
 there is no synchronous POST that returns the agent's reply (that was the V1
-`POST /session/:id/message`). To wait until the destination has finished
+`POST /api/session/:id/message`). To wait until the destination has finished
 processing the prompt, use the experimental wait endpoint (blocks until the
 session is idle) or poll `time.idle` in `GET /api/session/{id}`:
 
@@ -217,7 +217,7 @@ curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" 
 
 # Block until the destination is idle again (experimental, returns HTTP 204):
 curl.exe -s -X POST -u "opencode:$password" `
-  "http://127.0.0.1:$port/api/experimental/session/<DEST_ID>/wait"
+  "http://127.0.0.1:$port/api/experimental/api/session/<DEST_ID>/wait"
 ```
 
 The Cross-Talk equivalent of "wait for the reply" is the ACK/NACK handshake
@@ -248,6 +248,13 @@ curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" 
   step boundary (the agent sees it mid-turn). Use for short control messages
   (ACK/NACK/nudge) -- `cross.ps1 ack/nack/nudge` already send `steer`.
 
+**Wait for a session to go idle (optional, Fase 2):** the CLI provides a
+`wait-idle` subcommand that blocks (with a timeout) until the target session
+is idle. Primary: server-side `POST /api/experimental/session/{id}/wait`
+(HTTP 204 = idle); fallback: poll `GET /api/session/{id}` and treat it as
+idle when `time.idle >= time.updated` or `updated` is older than 3000 ms.
+Usage: `cross.ps1 wait-idle --session ses_X [--timeout 60] [--interval 1000]`.
+
 ### 4d. The leader communicates IDs and model to members (identity/signature)
 
 The **leader** (the one who initiates the task) knows its own session ID and those of
@@ -270,7 +277,7 @@ ID: <LEADER_ID> | model: <LEADER_MODEL>.
 ALWAYS reply to that origin session via API (prompt_async WITHOUT noReply):
 NEVER write the reply only in your own chat (the leader will not see it).
 VERIFY delivery: after sending, read the leader's history
-(GET /session/<LEADER_ID>/message) and confirm your envelope is there.
+(GET /api/session/<LEADER_ID>/message) and confirm your envelope is there.
 PROTOCOL: CROSS-TALK v2 (JSON ENVELOPE-V2 only) -- acknowledge with the CLI above
 ]
 ```
@@ -316,7 +323,7 @@ This way no one guesses or copies other people's IDs.
 > 2. The instruction "USE YOUR BASH TOOL. Copy and run EXACTLY this script"
 >    followed by the full script (see below), with the advisor's reply text
 >    already embedded and signed.
-> 3. The verification instruction (`GET /session/<LEADER_ID>/message`,
+> 3. The verification instruction (`GET /api/session/<LEADER_ID>/message`,
 >    search for the token) as a final step.
 >
 > Reference script (auto-detects credentials, ASCII no BOM, prompt_async):
@@ -356,7 +363,7 @@ This way no one guesses or copies other people's IDs.
 > ```powershell
 > # What the advisor must copy and run (ONLY these two lines, nothing to build):
 > $Puerto = ([regex]::Match((Get-Content "$env:APPDATA\ai.opencode.desktop\logs\*\main.log" -Raw), "server ready.*url: 'http://127\.0\.0\.1:(\d+)'")).Groups[1].Value
-> curl.exe -s -m 30 -X POST -u "opencode:$env:OPENCODE_SERVER_PASSWORD" -H "Content-Type: application/json" --data-binary "@C:\Users\unknown\AppData\Local\Temp\opencode\e2e86_listo.json" "http://127.0.0.1:$Puerto/session/ses_LEADER/prompt_async"
+> curl.exe -s -m 30 -X POST -u "opencode:$env:OPENCODE_SERVER_PASSWORD" -H "Content-Type: application/json" --data-binary "@C:\Users\unknown\AppData\Local\Temp\opencode\e2e86_listo.json" "http://127.0.0.1:$Puerto/api/session/ses_LEADER/prompt_async"
 > ```
 
 > **The leader also identifies itself (v1.5, tested 2026-08-10):** the leader's message
@@ -378,6 +385,18 @@ This way no one guesses or copies other people's IDs.
 > `GET /session` filtered by `directory`. For a correct signature, it is
 > essential that the leader assigns each member ITS real ID (the one
 > that appears in the list) and communicates it as-is.
+
+### 4d.1. HMAC signature of the envelope (optional, Fase 2)
+
+When the secret is configured (`CROSS_HMAC_SECRET` env or file
+`cross/cross.hmac.secret`), every v2 envelope carries a `sig` field computed
+as `HMAC-SHA256` over the canonical text:
+`"v2\n{type}\n{msg_id}\n{token}\n{timestamp}\n{payloadText}"`.
+The CLI constructs it automatically (`New-CrossEnvelope -Secret $S`);
+`Parse-CrossEnvelope` exposes `.sig`; `Test-CrossEnvelopeSignature` verifies
+it (`verify --envelope '...' [--secret S]`). If no secret is set, `sig` is
+omitted and `verify` reports `{valid:false, reason:'missing_sig'}`. Do NOT
+add `sig` by hand: it must match the canonical form exactly.
 
 ### 4e. `send_message.ps1` wrapper (mandatory auto-detection, anti-corruption practice)
 
@@ -416,7 +435,7 @@ This way no one guesses or copies other people's IDs.
   [System.IO.File]::WriteAllText($file, $json, [System.Text.Encoding]::ASCII)
   $endpoint = if ($NoReply) { "message" } else { "prompt_async" }
   curl.exe -s -m 30 -X POST -u "opencode:$Password" -H "Content-Type: application/json" `
-    --data-binary "@$file" "http://127.0.0.1:$Puerto/session/$Destino/$endpoint"
+    --data-binary "@$file" "http://127.0.0.1:$Puerto/api/session/$Destino/$endpoint"
   Remove-Item $file -ErrorAction SilentlyContinue
   exit 0
 }
@@ -500,7 +519,7 @@ $http = $null
 for ($i = 1; $i -le $Retries; $i++) {
   $http = curl.exe -s -m 30 -w "%{http_code}" -o NUL -X POST -u "opencode:$Password" `
     -H "Content-Type: application/json" --data-binary "@$file" `
-    "http://127.0.0.1:$Puerto/session/$Destino/$endpoint"
+    "http://127.0.0.1:$Puerto/api/session/$Destino/$endpoint"
   if ($http -match "^(200|204)$") { Write-Host "SEND OK (HTTP $http), attempt $i/$Retries"; break }
   Write-Host "SEND FAILED (HTTP $http), attempt $i/$Retries; retrying in $([Math]::Min(2 -shl ($i-1), 30))s..."
   Start-Sleep -Seconds ([Math]::Min(2 -shl ($i-1), 30))
@@ -511,7 +530,7 @@ if ($Token -and $http -match "^(200|204)$" -and $VerifWait -gt 0) {
   $deadline = (Get-Date).AddSeconds($VerifWait)
   do {
     Start-Sleep -Seconds 2
-    $hist = curl.exe -s -m 15 -u "opencode:$Password" "http://127.0.0.1:$Puerto/session/$Destino/message?limit=10" | ConvertFrom-Json
+    $hist = curl.exe -s -m 15 -u "opencode:$Password" "http://127.0.0.1:$Puerto/api/session/$Destino/message?limit=10" | ConvertFrom-Json
     $found = $hist | ForEach-Object { ($_.parts | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join "`n" } |
              Where-Object { $_ -match [regex]::Escape($Token) }
     if ($found) { Write-Host "VERIFIED: token '$Token' present in destination history"; break }
@@ -576,7 +595,7 @@ text and any agent can operate with the minimum.
 > **MANDATORY RULES when receiving a message from another session:**
 >
 > 1. Your reply must **be sent to the origin session via this API**
->    (`POST /session/<ORIGIN_ID>/message` or `prompt_async`). NEVER just
+>    (`POST /api/session/<ORIGIN_ID>/message` or `prompt_async`). NEVER just
 >    write the reply in your own conversation: the sender will not see it.
 >    **The primary channel is ALWAYS the API.** Replying only in your chat is a
 >    delivery failure: the sender receives nothing and must reclaim it from you. Writing in
@@ -600,7 +619,7 @@ text and any agent can operate with the minimum.
 5. **Verify delivery (mandatory, correction 2026-08-18):** once you have sent
    your reply via API, ask yourself if the way you sent it is the correct one
    and VERIFY that the leader received it: read the leader's history
-   (`GET /session/<ORIGIN_ID>/message`, section 6) searching for your token,
+   (`GET /api/session/<ORIGIN_ID>/message`, section 6) searching for your token,
    or check the log / `audit_log.md` (section 9). If you cannot confirm the
    arrival, do not assume it: resend via API or notify in your own chat
    (6.1e) that you could not send it.
@@ -692,7 +711,7 @@ $start = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 # After sending the message, poll for up to 3 minutes:
 $deadline = (Get-Date).AddMinutes(3)
 while ((Get-Date) -lt $deadline) {
-  $msgs = curl.exe -s -m 10 -u "opencode:$password" "http://127.0.0.1:$port/session/$mine/message?limit=10" | ConvertFrom-Json
+  $msgs = curl.exe -s -m 10 -u "opencode:$password" "http://127.0.0.1:$port/api/session/$mine/message?limit=10" | ConvertFrom-Json
   foreach ($m in $msgs) {
     if ($m.info.role -ne "user") { continue }
     if ($m.info.time.created -lt $start) { continue }
@@ -716,7 +735,7 @@ if it is still stalled, **wake it up by sending `sigue`**. Here are the steps:
 ```powershell
 $advisor = "ses_AAAAAAAA"   # the ID of the session that has not replied
 
-curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/session/$advisor/message?limit=10" |
+curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/api/session/$advisor/message?limit=10" |
     ConvertFrom-Json | ForEach-Object {
         $text = ($_.parts | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ' '
         "[$($_.info.role)] ($($_.info.time.created)) $($text.Substring(0, [Math]::Min(200, $text.Length)))"
@@ -749,12 +768,12 @@ An advisor may take over 3 minutes simply because it **is still working**
 ```powershell
 $advisor = "ses_AAAAAAAA"
 # Reading 1
-$a1 = curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/session/$advisor/message?limit=5" |
+$a1 = curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/api/session/$advisor/message?limit=5" |
     ConvertFrom-Json
 $a1Str = ($a1 | ForEach-Object { $_.info.id + ":" + ($_.parts | ForEach-Object { $_.type + ":" + $_.text }) }) -join '|'
 Start-Sleep -Seconds 15
 # Reading 2
-$a2 = curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/session/$advisor/message?limit=5" |
+$a2 = curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/api/session/$advisor/message?limit=5" |
     ConvertFrom-Json
 $a2Str = ($a2 | ForEach-Object { $_.info.id + ":" + ($_.parts | ForEach-Object { $_.type + ":" + $_.text }) }) -join '|'
 if ($a1Str -eq $a2Str) { Write-Host "SESSION IDLE -> may be stuck" }
@@ -777,7 +796,7 @@ $body | Set-Content "$env:TEMP\msg.json" -Encoding ascii -NoNewline
 
 curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" `
   --data-binary "@$env:TEMP\msg.json" `
-  "http://127.0.0.1:$port/session/$advisor/prompt_async"
+  "http://127.0.0.1:$port/api/session/$advisor/prompt_async"
 ```
 
 > `sigue` without `noReply` wakes up the agent and makes it continue its work. It is
@@ -834,8 +853,8 @@ curl.exe -s -X POST -u "opencode:$password" -H "Content-Type: application/json" 
 > **Rule that EVERY agent must know (v1.2, 2026-08-10):**
 >
 > 1. **The agent that assigns the task (the leader) can read your session from
->    outside** using `GET /session/<YOUR_ID>/message` (section 6.1a) and check your
->    status with `GET /session/<YOUR_ID>` (section 10.1). You have no privacy
+>    outside** using `GET /api/session/<YOUR_ID>/message` (section 6.1a) and check your
+>    status with `GET /api/session/<YOUR_ID>` (section 10.1). You have no privacy
 >    from the leader during the task: if your session goes idle or empty, they
 >    will detect it.
 > 2. **If you CANNOT complete the task** (provider down, error, you don't know how
@@ -889,7 +908,7 @@ body. Old `ACK:<token>:<id>:<model>` lines are rejected in v2.0.
 
 - The receiving agent sends the ACK as its **first step** when processing a message from
   another session, **before** its reply or contribution.
-- The ACK is sent to the sender's session using `POST /session/<ORIGIN_ID>/message`
+- The ACK is sent to the sender's session using `POST /api/session/<ORIGIN_ID>/message`
   (section 5) or the `send_message.ps1` wrapper (4e), typically with `noReply: true`.
 - The ACK confirms: *"I received your message and I am processing it"*.
 
@@ -1102,16 +1121,16 @@ of proposals and agreements if something is lost.
 
 | Mechanism | Role | When to use |
 |--|--|--|
-| `GET /session/:id` (API, already exists) | Live technical status (active, metadata, tokens) | Fast presence polling |
+| `GET /api/session/:id` (API, already exists) | Live technical status (active, metadata, tokens) | Fast presence polling |
 | `whiteboard/task_status.md` | Global task board (which round, who replied) | Update per round, reference for new agents |
 | Verification window + double reading (6.1b) | Diagnosis of stuck agents | Before sending `sigue` |
 
-### 10.1. Quick status query with `GET /session/:id`
+### 10.1. Quick status query with `GET /api/session/:id`
 
 Verify if a session is active without loading the full history:
 
 ```powershell
-curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/session/<SESSION_ID>"
+curl.exe -s -u "opencode:$password" "http://127.0.0.1:$port/api/session/<SESSION_ID>"
 ```
 
 Returns session metadata (`id`, `agent`, `model`, `time`, and if available
@@ -1132,7 +1151,7 @@ Updated per round, not in real time. Suggested format:
 
 > **Note (R3 consensus):** the `heartbeat.json` proposed in R1 was removed due to
 > race conditions (multiple agents writing the same file) and because
-> `GET /session/:id` already covers presence without overhead.
+> `GET /api/session/:id` already covers presence without overhead.
 
 ### 10.3. Heartbeat `ESTADO:` (v1.8, low-cost advisor availability)
 
@@ -1157,7 +1176,7 @@ Values for the state field: `DISPONIBLE` | `OCUPADO` | `DESCANSANDO`.
    operative, or **immediately when its state changes** (e.g. goes OCUPADO
    with a task).
 2. The leader builds the dashboard by polling each advisor session with
-   `GET /session/:id/message?limit=N` (section 6) and filtering lines
+   `GET /api/session/:id/message?limit=N` (section 6) and filtering lines
    matching `^ESTADO:`; the LATEST line per session is the current state.
    **Only the leader writes `whiteboard/estado_equipo.md`** (single writer,
    rewritten on each change -- the advisors publish `ESTADO:` in their own
@@ -1373,7 +1392,7 @@ replies is detected by idle session, not by "increasingly long timeout".
 ### 12.4 Passive presence (replaces heartbeat PING/PONG)
 
 No PING/PONG messages (noise; R2 consensus). The leader checks presence with
-two separate `GET /session/:id` readings (6.1b) and/or by looking at
+two separate `GET /api/session/:id` readings (6.1b) and/or by looking at
 `whiteboard/outbox.md`: if an `EN_VUELO` expires and the session is NOT growing ->
 sleeping. If growing -> renew lease and wait.
 
@@ -1711,7 +1730,7 @@ files (audit, escalated, DLQ, outbox); they do not rewrite previous lines.
 > | Priority | Risk | Proposal | Note |
 > |--|--|--|--|
 > | HIGH | LOW | **SQLite (`cross.db`)** | Resolves the `Add-Content` race condition (CROSS_WINDOWS.md #6). External review note: it is an architectural improvement, not an urgent fix (the single-writer rule already eliminates T10 from the protocol). Decide based on actual growth. |
-> | HIGH | LOW | **`session.status`/idle/error** | `GET /session/:id` already exists; use it as the primary presence signal and keep growth heuristics as fallback (external review). |
+> | HIGH | LOW | **`session.status`/idle/error** | `GET /api/session/:id` already exists; use it as the primary presence signal and keep growth heuristics as fallback (external review). |
 > | MEDIUM | MEDIUM-HIGH | **SSE / long-polling** | Only if the backend supports it; if not, do NOT implement. Test experimentally first: `GET /event`, create activity, observe `session.status`/`message.updated`/`session.idle`/`session.error` (external review). |
 > | LOW | LOW | **`@opencode-ai/sdk` SDK** | DX improvement; `curl`+ASCII works now. Verify semantics first. |
 > | LOW/MEDIUM | HIGH | **`session.abort`** | Opt-in / soft-abort only first. Blind aborting may leave inconsistent states. |
@@ -1732,7 +1751,7 @@ files (audit, escalated, DLQ, outbox); they do not rewrite previous lines.
   replace active polling (section 6) with these mechanisms to reduce
   load and latency. Out of scope for v1.1 (requires backend support).
 - **Batch operations:** send/read multiple sessions in a single call.
-- **Centralized heartbeat:** revisit `heartbeat.json` only if `GET /session/:id`
+- **Centralized heartbeat:** revisit `heartbeat.json` only if `GET /api/session/:id`
   does not cover presence, with a write mechanism using locking.
 - **Wrapper with `--aviso-atasco` mode (proposed by model-d, v1.3):** have
   `send_message.ps1` count failed retries and, after 3 failures, automatically

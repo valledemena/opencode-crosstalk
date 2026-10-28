@@ -117,7 +117,8 @@ function New-CrossDelivery {
         [scriptblock]$SendFn,
         [scriptblock]$ReadFn,
         [scriptblock]$GrowingFn,
-        [scriptblock]$SleepFn
+        [scriptblock]$SleepFn,
+        [string]$Secret = ''
     )
     if (-not $OutboxPath) { $OutboxPath = Get-OutboxPath }
     $cfg = Get-CrossConfig
@@ -190,7 +191,7 @@ function New-CrossDelivery {
 
     $envelope = Format-CrossEnvelope -MsgId $MsgId -RunId $RunId -Token $Token -RequiereAck $RequiereAck -Lease $Lease -Sucesor $Sucesor
     $body = ConvertTo-AsciiSafe $envelope
-    $v2line = Format-CrossEnvelopeV2 -MsgId $MsgId -RunId $RunId -Token $Token -RequiresAck $RequiereAck -Lease $Lease -Successor $Sucesor -Text $Text
+    $v2line = Format-CrossEnvelopeV2 -MsgId $MsgId -RunId $RunId -Token $Token -RequiresAck $RequiereAck -Lease $Lease -Successor $Sucesor -Text $Text -Secret $Secret
     $body += "`n" + $v2line
     if ($Text) { $body += "`n" + (ConvertTo-AsciiSafe $Text) }
 

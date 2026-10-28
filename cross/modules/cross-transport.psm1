@@ -414,6 +414,80 @@ function Get-CrossSessionState {
     }
 }
 
+# Fase 2 (2026-10-28): wait until a session goes idle (V2). Primary: POST the
+# experimental wait endpoint (blocks server-side; HTTP 204 = idle). If the
+# endpoint is unavailable, times out (curl status 0) or answers non-204, fall
+# back to polling GET /api/session/{id}: the session is idle when
+# time.idle >= time.updated, or when time.updated is older than the quiet
+# threshold (V2 bumps time.updated on every turn activity).
+# Mocks for tests: SleepFn(ms), WaitEndpointFn(id) -> @{status}, StateFn(id)
+# -> @{ok; time_updated; time_idle}.
+function Wait-CrossSessionIdle {
+    param(
+        [Parameter(Mandatory=$true)][string]$Id,
+        [int]$Port = 0,
+        [string]$Password = '',
+        [int]$TimeoutSec = 60,
+        [int]$PollIntervalMs = 1000,
+        [int]$QuietThresholdMs = 3000,
+        [scriptblock]$SleepFn,
+        [scriptblock]$WaitEndpointFn,
+        [scriptblock]$StateFn
+    )
+    $watch = [System.Diagnostics.Stopwatch]::StartNew()
+    $deadlineMs = [Math]::Max(1, $TimeoutSec) * 1000
+
+    # Primary: experimental wait endpoint (server-side block; 204 = idle).
+    $r = $null
+    if ($WaitEndpointFn) {
+        $r = & $WaitEndpointFn $Id
+    } else {
+        $waitSec = [Math]::Max(2, [int][Math]::Ceiling($deadlineMs / 1000.0))
+        $r = Invoke-CrossApi -Method 'POST' -Path "/api/experimental/session/$Id/wait" -Port $Port -Password $Password -TimeoutSec $waitSec
+    }
+    if ($r -and [int]$r.status -eq 204) {
+        return @{ ok = $true; idle = $true; method = 'wait-endpoint'; http_status = 204; elapsed_ms = [math]::Round($watch.Elapsed.TotalMilliseconds) }
+    }
+    Write-CrossDiag -Level debug -Message ("Wait-CrossSessionIdle: wait endpoint HTTP {0} -> polling fallback" -f $(if ($r) { $r.status } else { 'null' }))
+
+    # Fallback: poll session state until idle (field match or quiet threshold).
+    while ($watch.Elapsed.TotalMilliseconds -lt $deadlineMs) {
+        $st = $null
+        if ($StateFn) {
+            $st = & $StateFn $Id
+        } else {
+            $api = Invoke-CrossApi -Method 'GET' -Path "/api/session/$Id" -Port $Port -Password $Password -TimeoutSec 8
+            if ($api.status -eq 200) {
+                $s = $null
+                try { $s = $api.body | ConvertFrom-Json } catch { $s = $null }
+                if ($s) {
+                    $tu = $null; $ti = $null
+                    $pt = $s.PSObject.Properties['time']
+                    if ($pt -and $pt.Value) {
+                        $pu = $pt.Value.PSObject.Properties['updated']; if ($pu -and $null -ne $pu.Value) { $tu = [long]$pu.Value }
+                        $pi = $pt.Value.PSObject.Properties['idle']; if ($pi -and $null -ne $pi.Value) { $ti = [long]$pi.Value }
+                    }
+                    $st = @{ ok = $true; time_updated = $tu; time_idle = $ti }
+                } else { $st = @{ ok = $false } }
+            } else { $st = @{ ok = $false; status_code = $api.status } }
+        }
+        if ($st -and $st.ok) {
+            $tu = $st.time_updated; $ti = $st.time_idle
+            if ($tu -and $ti -and $ti -ge $tu) {
+                return @{ ok = $true; idle = $true; method = 'poll-idle-field'; elapsed_ms = [math]::Round($watch.Elapsed.TotalMilliseconds) }
+            }
+            if ($tu) {
+                $nowMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                if (($nowMs - $tu) -gt $QuietThresholdMs) {
+                    return @{ ok = $true; idle = $true; method = 'poll-quiet'; elapsed_ms = [math]::Round($watch.Elapsed.TotalMilliseconds) }
+                }
+            }
+        }
+        if ($SleepFn) { & $SleepFn $PollIntervalMs } else { Start-Sleep -Milliseconds $PollIntervalMs }
+    }
+    return @{ ok = $true; idle = $false; timed_out = $true; method = 'poll-timeout'; elapsed_ms = [math]::Round($watch.Elapsed.TotalMilliseconds) }
+}
+
 # Fase 1 (2026-10-28): normalize the message-list shape across API versions.
 # V2 shape: {"data":[{id, time:{created(ms)}, type, text?, content?[{type,text}]}, ...], "cursor": ...}
 #           (default order newest-first; user text is a flat "text" field;
@@ -645,4 +719,4 @@ function Invoke-CrossApi {
     return @{ status = [int]$code; body = $body }
 }
 
-Export-ModuleMember -Function Import-CrossConfig, Get-CrossConfig, Get-CrossCurlCommand, Get-CrossPassword, Get-PasswordHash, Get-CrossNetrcFile, Test-CrossHealthRaw, Resolve-CrossEndpoint, Invoke-CrossApi, Get-CrossPortFromCache, Write-CrossPortCache, Get-CrossPortFromLog, Get-CrossPortByScan, Get-CrossPortWellKnown, Write-CrossPortWellKnown, Write-CrossDiag, Get-CrossSessionState, Get-CrossPortFromListeners, ConvertFrom-CrossMessageList
+Export-ModuleMember -Function Import-CrossConfig, Get-CrossConfig, Get-CrossCurlCommand, Get-CrossPassword, Get-PasswordHash, Get-CrossNetrcFile, Test-CrossHealthRaw, Resolve-CrossEndpoint, Invoke-CrossApi, Get-CrossPortFromCache, Write-CrossPortCache, Get-CrossPortFromLog, Get-CrossPortByScan, Get-CrossPortWellKnown, Write-CrossPortWellKnown, Write-CrossDiag, Get-CrossSessionState, Get-CrossPortFromListeners, ConvertFrom-CrossMessageList, Wait-CrossSessionIdle

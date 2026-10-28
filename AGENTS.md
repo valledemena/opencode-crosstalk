@@ -99,6 +99,21 @@ If AUTH_FAILED: the password lives in the `OPENCODE_SERVER_PASSWORD` env var or
 - A v1-style `ACK-PROTOCOLO:` line does NOT count.
 - Never hand-write `ACK:`/`NACK:`/`TOKEN:` lines: only `ENVELOPE-V2: {json}` or
   pure JSON is parsed.
+- **Verify an envelope's HMAC signature** (optional, Fase 2): if the secret
+  `CROSS_HMAC_SECRET` or file `cross/cross.hmac.secret` is set, every envelope
+  carries a `sig` field:
+  ```powershell
+  .\cross.ps1 verify --envelope '{"v":2,"type":"message","msg_id":"X","token":"T"}' [--secret S]
+  ```
+  The `verify` handler returns `{valid:true|false, has_sig:true|false, ...}`.
+- **Wait for a session to go idle** (optional, Fase 2):
+  ```powershell
+  .\cross.ps1 wait-idle --session ses_X [--timeout 60] [--interval 1000]
+  ```
+  Primary: experimental server-side `POST /api/experimental/session/{id}/wait`
+  (HTTP 204 = idle). Fallback: poll `GET /api/session/{id}` until
+  `time.idle >= time.updated` or `updated` is older than 3000 ms. Returns
+  `{idle:true|false, method:..., timed_out:..., elapsed_ms:...}`.
 
 ## Shared clone with several agents
 

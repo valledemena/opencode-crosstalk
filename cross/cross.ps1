@@ -40,7 +40,7 @@ $argsList = @($Argv)
 
 $flags = [ordered]@{}
 $positionals = New-Object System.Collections.ArrayList
-$KnownFlags = @('json','human','quiet','no-cache','health-skip','port','password','config','help','directory','session','session-id','since','role','limit','get','set','list','msg','model','owner','force','state-file','outbox-file','text','dest','delivery','token','run-id','lease','sucesor','attempt','ack-timeout','max-attempts','no-wait','timeout','apply','quarantine','retry-auto','for','interval','check-file','expected-token','msg-id','agent','reason','note','for-msg-id','for-run-id','task','task-id','from','retries','flag','summary','check-log','minutes','to','log-path','by-agent','until','dry-run-sweep','prometheus','prometheus-output')
+$KnownFlags = @('json','human','quiet','no-cache','health-skip','port','password','config','help','directory','session','session-id','since','role','limit','get','set','list','msg','model','owner','force','state-file','outbox-file','text','dest','delivery','token','run-id','lease','sucesor','attempt','ack-timeout','max-attempts','no-wait','timeout','apply','quarantine','retry-auto','for','interval','check-file','expected-token','msg-id','agent','reason','note','for-msg-id','for-run-id','task','task-id','from','retries','flag','summary','check-log','minutes','to','log-path','by-agent','until','dry-run-sweep','prometheus','prometheus-output','envelope','secret')
 
 for ($i = 0; $i -lt $argsList.Count; $i++) {
     $arg = $argsList[$i]
@@ -58,13 +58,13 @@ for ($i = 0; $i -lt $argsList.Count; $i++) {
         '^--config$' { $i++; $ConfigPath = $argsList[$i]; break }
         '^--help$' { $Help = $true; break }
         '^-h$' { $Help = $true; break }
-        '^--(delivery|directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output)$' {
+        '^--(delivery|directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output|envelope|secret)$' {
             $name = $Matches[1]
             if (($i + 1) -lt $argsList.Count) { $i++; $flags[$name] = $argsList[$i] }
             else { $flags[$name] = $true }
             break
         }
-        '^--(delivery|directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output)=(.+)$' {
+        '^--(delivery|directory|session|session-id|since|role|limit|get|set|msg|model|owner|state-file|outbox-file|text|dest|token|run-id|lease|sucesor|attempt|ack-timeout|timeout|max-attempts|for|interval|check-file|expected-token|msg-id|agent|reason|note|for-msg-id|for-run-id|task|task-id|from|retries|flag|summary|minutes|to|log-path|by-agent|until|prometheus-output|envelope|secret)=(.+)$' {
             $name = $Matches[1]
             $flags[$name] = $Matches[2]
             break
@@ -121,6 +121,8 @@ Usage:
   cross diagnose --msg X [--outbox-file PATH] [--sleep-threshold-sec N]
   cross metrics [--since ISO8601] [--until ISO8601] [--by-agent ses_Y] [--log-path PATH]
                 [--json | --human]
+  cross wait-idle --session ses_X [--timeout S] [--interval MS]
+  cross verify --envelope '{"v":2,...}' [--secret SECRET]
 
 Global flags:
   --json (default) | --human | --quiet
@@ -832,6 +834,53 @@ switch ($Command) {
             by_agent = $res.by_agent
         } -Cmd 'metrics'
         Out-Result $r 'metrics' -Watch $watch
+    }
+    'wait-idle' {
+        $watch = [System.Diagnostics.Stopwatch]::StartNew()
+        $sid = [string]$flags['session']
+        if (-not $sid) {
+            $r = New-Result -Ok $false -Code 64 -Data @{ err = 'USAGE_ERROR'; detail = 'missing --session ses_X' } -Cmd 'wait-idle'
+            Out-Result $r 'wait-idle' -Watch $watch; return
+        }
+        $timeoutSec = if ($flags['timeout']) { [int]$flags['timeout'] } else { 60 }
+        $intervalMs = if ($flags['interval']) { [int]$flags['interval'] } else { 1000 }
+        $ep = Resolve-CrossEndpoint -Port $PortArg -Password $PasswordArg -NoCache:$NoCache -HealthSkip:$HealthSkip
+        if (-not $ep.ok) {
+            $r = New-Result -Ok $false -Code $ep.code -Data @{ err = $ep.err; detail = $ep.detail; hint = $ep.hint } -Cmd 'wait-idle'
+            Out-Result $r 'wait-idle' -Watch $watch; return
+        }
+        $res = Wait-CrossSessionIdle -Id $sid -Port $ep.port -Password $ep.password -TimeoutSec $timeoutSec -PollIntervalMs $intervalMs -QuietThresholdMs 3000
+        $r = New-Result -Ok $res.ok -Code $(if ($res.ok) { 0 } else { (if ($res.timed_out) { 3 } else { 2 }) }) -Data @{ session = $sid; idle = $res.idle; method = $res.method; timed_out = $res.timed_out; elapsed_ms = $res.elapsed_ms; http_status = $res.http_status } -Cmd 'wait-idle'
+        Out-Result $r 'wait-idle' -Watch $watch
+    }
+    'verify' {
+        $watch = [System.Diagnostics.Stopwatch]::StartNew()
+        $envText = [string]$flags['envelope']
+        if (-not $envText) {
+            $r = New-Result -Ok $false -Code 64 -Data @{ err = 'USAGE_ERROR'; detail = 'missing --envelope <json-string>' } -Cmd 'verify'
+            Out-Result $r 'verify' -Watch $watch; return
+        }
+        $secret = [string]$flags['secret']
+        $envObj = $null
+        try { $envObj = $envText | ConvertFrom-Json } catch { $envObj = $null }
+        if (-not $envObj) {
+            $envText = $envText.Trim()
+            if ($envText.StartsWith('ENVELOPE-V2:')) {
+                $rest = $envText.Substring(12).Trim()
+                $open = $rest.IndexOf('{')
+                if ($open -ge 0) { $rest = $rest.Substring($open) }
+                try { $envObj = $rest | ConvertFrom-Json } catch { $envObj = $null }
+            }
+        }
+        if (-not $envObj) {
+            $r = New-Result -Ok $false -Code 64 -Data @{ err = 'PARSE_ERROR'; detail = 'could not parse envelope JSON' } -Cmd 'verify'
+            Out-Result $r 'verify' -Watch $watch; return
+        }
+        $sigCheck = Test-CrossEnvelopeSignature -Envelope $envObj -Secret $secret
+        $sigProp = $envObj.PSObject.Properties['sig']
+        $sigValue = if ($sigProp) { [string]$sigProp.Value } else { '' }
+        $r = New-Result -Ok $sigCheck.valid -Code $(if ($sigCheck.valid) { 0 } else { (if ($sigCheck.reason -eq 'missing_sig') { 2 } else { 3 }) }) -Data @{ valid = $sigCheck.valid; has_sig = $sigCheck.has_sig; expected_sig = $sigCheck.expected; actual_sig = $sigCheck.actual; reason = $sigCheck.reason; envelope_type = (if ($envObj.type) { [string]$envObj.type } else { '' }) } -Cmd 'verify'
+        Out-Result $r 'verify' -Watch $watch
     }
     default {
         $r = New-Result -Ok $false -Code 64 -Data @{ err = 'USAGE_ERROR'; detail = "unknown subcommand: $Command" } -Cmd $Command
